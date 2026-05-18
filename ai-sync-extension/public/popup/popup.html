@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal AI Sync</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 340px;
+      min-height: 200px;
+      background: #09090b;
+      color: #e4e4e7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      padding: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f4f4f5;
+      letter-spacing: -.01em;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: #1d4ed8;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #71717a;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    #tab-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .tab-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid #27272a;
+      cursor: pointer;
+      transition: background 100ms, border-color 100ms;
+    }
+    .tab-card:hover { background: #18181b; }
+    .tab-card.source { border-color: #1d4ed8; background: #1e2e52; }
+    .tab-card.dest   { border-color: #16a34a; background: #14291d; }
+
+    .platform-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .chatgpt { background: #10a37f22; color: #10a37f; }
+    .claude  { background: #d97706  22; color: #fbbf24; }
+    .gemini  { background: #3b82f622; color: #60a5fa; }
+
+    .tab-title { color: #a1a1aa; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .empty { color: #52525b; font-size: 12px; text-align: center; padding: 12px 0; line-height: 1.5; }
+
+    .hint {
+      font-size: 11px;
+      color: #52525b;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .hint span { color: #3b82f6; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      all: unset;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      border: 1px solid #3f3f46;
+      color: #e4e4e7;
+      background: #18181b;
+      transition: background 100ms;
+    }
+    button:hover:not(:disabled) { background: #27272a; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    #btn-export  { border-color: #16a34a; color: #4ade80; }
+    #btn-memory  { border-color: #7c3aed; color: #a78bfa; }
+
+    .divider { height: 1px; background: #27272a; margin: 10px 0; }
+
+    .pair-info {
+      margin-bottom: 8px;
+    }
+
+    #pair-info {
+      font-size: 11px;
+      color: #71717a;
+      white-space: pre;
+      font-family: monospace;
+    }
+
+    #status {
+      font-size: 11px;
+      color: #71717a;
+      min-height: 14px;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    #btn-refresh {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-color: transparent;
+      color: #52525b;
+    }
+
+    a.options-link {
+      font-size: 11px;
+      color: #52525b;
+      text-decoration: none;
+    }
+    a.options-link:hover { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Universal AI Sync</h1>
+    <span class="badge">MV3</span>
+  </header>
+
+  <p class="section-label">Open AI Tabs</p>
+  <div id="tab-list">
+    <p class="empty">Loading…</p>
+  </div>
+
+  <p class="hint">
+    Click to select <span>source</span> (blue) then <span style="color:#22c55e">dest</span> (green).
+  </p>
+
+  <div class="actions">
+    <button id="btn-export" disabled>↗ Export Conv</button>
+    <button id="btn-memory" disabled>🧠 Export Memory</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="footer">
+    <div id="status"></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="btn-refresh">↺ Refresh</button>
+      <a class="options-link" href="../options/options.html" target="_blank">⚙ Options</a>
+    </div>
+  </div>
+
+  <script src="./popup.js"></script>
+</body>
+</html>

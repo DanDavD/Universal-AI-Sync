@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "build": "npm run build --prefix ai-sync-extension",
+    "dev": "npm run dev --prefix ai-sync-extension"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.42"
+  }
+}

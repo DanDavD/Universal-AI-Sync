@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"c:\\\\Users\\\\danie\\\\OneDrive\\\\Documents\\\\GitHub\\\\Universal-AI-Sync\" && echo \"---\" && ls \"c:\\\\Users\\\\danie\\\\.claude\\\\projects\\\\c--Users-danie-OneDrive-Documents-GitHub-Universal-AI-Sync\\\\memory\\\\\" 2>/dev/null || echo \"No memory files yet\")",
+      "Read(//c/Users/danie/.claude/projects/c--Users-danie-OneDrive-Documents-GitHub-Universal-AI-Sync/memory\" 2>/dev/**)"
+    ]
+  }
+}

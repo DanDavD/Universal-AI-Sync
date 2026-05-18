@@ -1,0 +1,15 @@
+{
+  "name": "universal-ai-sync",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "build:prod": "node build.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "vite": "^8.0.12"
+  }
+}

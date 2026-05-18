@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Sync — Options</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #09090b;
+      color: #e4e4e7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      padding: 32px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #71717a; font-size: 13px; margin-bottom: 32px; line-height: 1.5; }
+
+    .platform-section {
+      margin-bottom: 32px;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .platform-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      background: #18181b;
+      border-bottom: 1px solid #27272a;
+    }
+
+    .platform-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      text-transform: uppercase;
+    }
+    .chatgpt { background: #10a37f22; color: #10a37f; }
+    .claude  { background: #d9770622; color: #fbbf24; }
+    .gemini  { background: #3b82f622; color: #60a5fa; }
+
+    .platform-name { font-weight: 600; font-size: 14px; }
+
+    form { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+
+    label { font-size: 11px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: .05em; }
+
+    input[type="text"] {
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 7px;
+      color: #e4e4e7;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      padding: 7px 10px;
+      width: 100%;
+      transition: border-color 120ms;
+    }
+    input[type="text"]:focus { outline: none; border-color: #1d4ed8; }
+
+    .field-hint { font-size: 11px; color: #52525b; }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding-top: 4px;
+    }
+
+    button {
+      all: unset;
+      cursor: pointer;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #3f3f46;
+      color: #e4e4e7;
+      background: #18181b;
+      transition: background 100ms;
+    }
+    button:hover { background: #27272a; }
+
+    .btn-save { border-color: #1d4ed8; color: #60a5fa; }
+    .btn-reset { color: #71717a; }
+
+    .danger-zone {
+      border: 1px solid #7f1d1d;
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 8px;
+    }
+    .danger-title { font-size: 13px; font-weight: 600; color: #f87171; margin-bottom: 8px; }
+    .danger-desc  { font-size: 12px; color: #71717a; margin-bottom: 12px; }
+    #btn-clear-all { border-color: #991b1b; color: #f87171; }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: #27272a;
+      color: #e4e4e7;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms, transform 200ms;
+    }
+    #toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <h1>Universal AI Sync — Options</h1>
+  <p class="subtitle">
+    AI platforms frequently update their DOM structure. If sync stops working, update the CSS
+    selectors below and save. Changes take effect when you reload the AI tab.
+  </p>
+
+  <!-- ChatGPT -->
+  <div class="platform-section">
+    <div class="platform-header">
+      <span class="platform-badge chatgpt">ChatGPT</span>
+      <span class="platform-name">chat.openai.com</span>
+    </div>
+    <form id="form-chatgpt">
+      <div class="field">
+        <label>Chat Container</label>
+        <input type="text" name="chatContainer" />
+      </div>
+      <div class="field">
+        <label>User Message Elements</label>
+        <input type="text" name="userMessages" />
+      </div>
+      <div class="field">
+        <label>Assistant Message Elements</label>
+        <input type="text" name="assistantMessages" />
+      </div>
+      <div class="field">
+        <label>Message Text Selectors</label>
+        <input type="text" name="messageText" />
+      </div>
+      <div class="field">
+        <label>Input (contenteditable)</label>
+        <input type="text" name="input" />
+      </div>
+      <div class="field">
+        <label>Submit Button</label>
+        <input type="text" name="submitBtn" />
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Save ChatGPT</button>
+        <button type="button" class="btn-reset">Reset to defaults</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Claude -->
+  <div class="platform-section">
+    <div class="platform-header">
+      <span class="platform-badge claude">Claude</span>
+      <span class="platform-name">claude.ai</span>
+    </div>
+    <form id="form-claude">
+      <div class="field">
+        <label>Chat Container</label>
+        <input type="text" name="chatContainer" />
+      </div>
+      <div class="field">
+        <label>User Message Elements</label>
+        <input type="text" name="userMessages" />
+      </div>
+      <div class="field">
+        <label>Assistant Message Elements</label>
+        <input type="text" name="assistantMessages" />
+      </div>
+      <div class="field">
+        <label>Message Text Selectors</label>
+        <input type="text" name="messageText" />
+      </div>
+      <div class="field">
+        <label>Input (ProseMirror)</label>
+        <input type="text" name="input" />
+      </div>
+      <div class="field">
+        <label>Submit Button</label>
+        <input type="text" name="submitBtn" />
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Save Claude</button>
+        <button type="button" class="btn-reset">Reset to defaults</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Gemini -->
+  <div class="platform-section">
+    <div class="platform-header">
+      <span class="platform-badge gemini">Gemini</span>
+      <span class="platform-name">gemini.google.com</span>
+    </div>
+    <form id="form-gemini">
+      <div class="field">
+        <label>Chat Container</label>
+        <input type="text" name="chatContainer" />
+      </div>
+      <div class="field">
+        <label>User Message Elements</label>
+        <input type="text" name="userMessages" />
+      </div>
+      <div class="field">
+        <label>Assistant Message Elements</label>
+        <input type="text" name="assistantMessages" />
+      </div>
+      <div class="field">
+        <label>Message Text Selectors</label>
+        <input type="text" name="messageText" />
+      </div>
+      <div class="field">
+        <label>Input (Quill Editor)</label>
+        <input type="text" name="input" />
+      </div>
+      <div class="field">
+        <label>Submit Button</label>
+        <input type="text" name="submitBtn" />
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Save Gemini</button>
+        <button type="button" class="btn-reset">Reset to defaults</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="danger-zone">
+    <p class="danger-title">Danger Zone</p>
+    <p class="danger-desc">Clear all stored selector overrides and session state. Reload AI tabs after clearing.</p>
+    <button id="btn-clear-all">Clear all data</button>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="./options.js"></script>
+</body>
+</html>
