@@ -28,25 +28,13 @@ export function scrapeConversation(sel) {
   /** @type {import('../shared/parser.js').ConvMsg[]} */
   const result = []
   for (const { node, role } of tagged) {
-    const text = extractText(node, sel.messageText).trim()
+    const text = extractText(node).trim()
     if (text) result.push({ role, text, id: msgId(role, text) })
   }
   return result
 }
 
-/**
- * @param {Element} node
- * @param {string} textSelectors
- */
-function extractText(node, textSelectors) {
-  const parts = []
-  for (const sel of textSelectors.split(',').map((s) => s.trim())) {
-    try {
-      for (const child of node.querySelectorAll(sel)) {
-        const t = child.textContent?.trim()
-        if (t) parts.push(t)
-      }
-    } catch { /* skip invalid selector */ }
-  }
-  return parts.length ? parts.join('\n') : (node.textContent ?? '').trim()
+/** @param {Element} node */
+function extractText(node) {
+  return node instanceof HTMLElement ? node.innerText : (node.textContent ?? '')
 }

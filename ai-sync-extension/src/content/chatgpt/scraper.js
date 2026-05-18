@@ -1,41 +1,48 @@
 // @ts-check
-import { parseNodes } from '../shared/parser.js'
+import { msgId } from '../shared/parser.js'
 import { queryAll } from '../shared/selectorConfig.js'
 
 /**
- * Extracts the full conversation from the ChatGPT DOM.
+ * ChatGPT scraper.
  *
- * ChatGPT renders each turn as a div with [data-message-author-role="user"|"assistant"].
- * Message text lives in .whitespace-pre-wrap (user) or .markdown.prose (assistant).
+ * Role is read from the reliable data-message-author-role attribute.
+ * Text is extracted via innerText on the whole turn node — this captures
+ * everything the user sees: paragraphs, bullet lists, AND code blocks (the
+ * "copy boxes"), without needing to chase class names that change each deploy.
  *
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
  * @returns {import('../shared/parser.js').ConvMsg[]}
  */
 export function scrapeConversation(sel) {
-  const userNodes     = queryAll(sel.userMessages)
+  const userNodes      = queryAll(sel.userMessages)
   const assistantNodes = queryAll(sel.assistantMessages)
 
-  // Merge and sort by DOM order so the conversation is chronological.
-  const allNodes = [...userNodes, ...assistantNodes].sort(
-    (a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+  /** @type {{ node: Element, role: 'user'|'assistant' }[]} */
+  const tagged = [
+    ...userNodes.map((n) => ({ node: n, role: /** @type {'user'} */ ('user') })),
+    ...assistantNodes.map((n) => ({ node: n, role: /** @type {'assistant'} */ ('assistant') })),
+  ].sort((a, b) =>
+    a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
   )
 
-  return parseNodes(
-    allNodes,
-    (node) => node.getAttribute('data-message-author-role') === 'user' ? 'user' : 'assistant',
-    (node) => extractText(node, sel.messageText),
-  )
+  /** @type {import('../shared/parser.js').ConvMsg[]} */
+  const result = []
+  for (const { node, role } of tagged) {
+    const text = extractText(node).trim()
+    if (text) result.push({ role, text, id: msgId(role, text) })
+  }
+  return result
 }
 
 /**
+ * Uses innerText so the browser resolves all nested elements — paragraphs,
+ * list items, pre/code blocks — into a single human-readable string, exactly
+ * as the user sees it, without requiring selectors that break on DOM changes.
+ *
  * @param {Element} node
- * @param {string} textSelectors
  */
-function extractText(node, textSelectors) {
-  const parts = []
-  for (const child of queryAll(textSelectors, node)) {
-    const t = child.textContent?.trim()
-    if (t) parts.push(t)
-  }
-  return parts.length ? parts.join('\n') : (node.textContent ?? '').trim()
+function extractText(node) {
+  return node instanceof HTMLElement
+    ? node.innerText
+    : (node.textContent ?? '')
 }
