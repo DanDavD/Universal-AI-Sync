@@ -122,6 +122,26 @@
     #btn-export  { border-color: #16a34a; color: #4ade80; }
     #btn-memory  { border-color: #7c3aed; color: #a78bfa; }
 
+    #progress-bar { display: none; margin-bottom: 8px; }
+    .progress-track {
+      height: 4px;
+      background: #27272a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #7c3aed;
+      border-radius: 2px;
+      transition: width 350ms ease, background 200ms;
+    }
+    #progress-label {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-top: 4px;
+    }
+
     .divider { height: 1px; background: #27272a; margin: 10px 0; }
 
     .pair-info {
@@ -181,6 +201,11 @@
   <div class="actions">
     <button id="btn-export" disabled>↗ Export Conv</button>
     <button id="btn-memory" disabled>🧠 Export Memory</button>
+  </div>
+
+  <div id="progress-bar">
+    <div class="progress-track"><div id="progress-fill"></div></div>
+    <div id="progress-label"></div>
   </div>
 
   <div class="divider"></div>

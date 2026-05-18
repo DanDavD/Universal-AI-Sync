@@ -80,6 +80,7 @@ async function dispatch(msg, sender) {
     case 'SET_MIRROR_PAIR':    return setMirrorPair(msg)
     case 'REMOVE_MIRROR_PAIR': return removeMirrorPair(msg)
     case 'EXPORT_CONVERSATION':return exportConversation(msg)
+    case 'TRANSFER_MEMORY':    return transferMemory(msg)
     case 'MIRROR_MESSAGE':     return mirrorMessage(msg, sender)
     case 'GET_STATE':          return getState()
     default:
@@ -139,6 +140,67 @@ async function exportConversation(msg) {
     return { error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+/**
+ * Full memory transfer orchestrated by the SW so it survives popup close / tab switch.
+ * Progress is written to storage.session so the popup can read it whether it's open or not.
+ */
+async function transferMemory(msg) {
+  const { sourceTabId, destTabId } = msg
+
+  const setProgress = async (phase, message, pct) => {
+    await chrome.storage.session.set({ transferStatus: { phase, message, pct } })
+    // Best-effort push to popup if it's still open
+    chrome.runtime.sendMessage({ type: 'TRANSFER_PROGRESS', phase, message, pct }).catch(() => {})
+  }
+
+  try {
+    await setProgress('scraping', 'Reading source tab…', 15)
+    const scraped = await chrome.tabs.sendMessage(sourceTabId, { type: 'SCRAPE_CONVERSATION' })
+
+    if (!scraped?.ok || !scraped.conversation?.length) {
+      await setProgress('error', 'Nothing scraped from source tab', 0)
+      return { error: 'Nothing scraped' }
+    }
+
+    const userCount = scraped.conversation.filter(
+      /** @param {any} m */ (m) => m.role === 'user'
+    ).length
+
+    if (!userCount) {
+      await setProgress('error', 'No user messages found', 0)
+      return { error: 'No user messages' }
+    }
+
+    await setProgress('building', `Building prompt from ${userCount} memories…`, 45)
+    await sleep(250) // brief pause so the label is readable before the next phase
+
+    await setProgress('injecting', `Injecting ${userCount} memories into target…`, 75)
+    const result = await chrome.tabs.sendMessage(destTabId, {
+      type: 'INJECT_MEMORY',
+      conversation: scraped.conversation,
+    })
+
+    if (result?.ok) {
+      await setProgress('done', `${userCount} memories transferred — AI is processing`, 100)
+      return { ok: true, userCount }
+    }
+
+    const errMsg = result?.error ?? 'unknown error'
+    await setProgress('error', `Transfer failed: ${errMsg}`, 0)
+    return { error: errMsg }
+
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    await chrome.storage.session.set({
+      transferStatus: { phase: 'error', message: errMsg, pct: 0 }
+    })
+    return { error: errMsg }
+  }
+}
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function mirrorMessage(msg, sender) {
   const srcTabId = sender.tab?.id

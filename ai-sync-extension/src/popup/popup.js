@@ -20,6 +20,16 @@ let selectedDest = null
 document.addEventListener('DOMContentLoaded', async () => {
   await refresh()
 
+  // Restore any in-progress transfer status (popup may have been closed mid-transfer)
+  const stored = await chrome.storage.session.get('transferStatus')
+  const ts = /** @type {any} */ (stored.transferStatus)
+  if (ts?.phase && ts?.message && typeof ts?.pct === 'number') applyProgress(ts)
+
+  // Live progress updates pushed from the background SW
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'TRANSFER_PROGRESS') applyProgress(msg)
+  })
+
   document.getElementById('btn-refresh')?.addEventListener('click', refresh)
   document.getElementById('btn-export')?.addEventListener('click', handleExport)
   document.getElementById('btn-memory')?.addEventListener('click', handleExportMemory)
@@ -136,26 +146,37 @@ async function handleExport() {
 
 async function handleExportMemory() {
   if (!selectedSource || !selectedDest) return
-  try {
-    setStatus('Scraping source tab…')
-    const scraped = await chrome.tabs.sendMessage(selectedSource, { type: 'SCRAPE_CONVERSATION' })
-    if (!scraped?.ok || !scraped.conversation?.length) {
-      setStatus('Nothing scraped from source tab')
-      return
-    }
-    const userCount = scraped.conversation.filter(/** @param {any} m */ (m) => m.role === 'user').length
-    if (!userCount) { setStatus('No user messages to transfer'); return }
+  // Delegate everything to the background SW so the transfer survives
+  // popup close / tab switch. Progress comes back via TRANSFER_PROGRESS messages.
+  applyProgress({ phase: 'scraping', message: 'Starting transfer…', pct: 5 })
+  chrome.runtime.sendMessage({
+    type: 'TRANSFER_MEMORY',
+    sourceTabId: selectedSource,
+    destTabId: selectedDest,
+  }).catch((err) => {
+    applyProgress({ phase: 'error', message: 'Error: ' + String(err), pct: 0 })
+  })
+}
 
-    setStatus(`Transferring ${userCount} memories…`)
-    const result = await chrome.tabs.sendMessage(selectedDest, {
-      type: 'INJECT_MEMORY',
-      conversation: scraped.conversation,
-    })
-    setStatus(result?.ok
-      ? `Memory transferred ✓ — target AI is processing`
-      : 'Transfer failed: ' + (result?.error ?? 'unknown'))
-  } catch (err) {
-    setStatus('Error: ' + String(err))
+/**
+ * @param {{ phase: string, message: string, pct: number }} status
+ */
+function applyProgress(status) {
+  const bar      = /** @type {HTMLElement|null} */ (document.getElementById('progress-bar'))
+  const fill     = /** @type {HTMLElement|null} */ (document.getElementById('progress-fill'))
+  const label    = /** @type {HTMLElement|null} */ (document.getElementById('progress-label'))
+
+  if (!bar || !fill || !label) return
+
+  bar.style.display = status.phase === 'idle' ? 'none' : 'block'
+  fill.style.width  = status.pct + '%'
+  fill.style.background = status.phase === 'error' ? '#ef4444'
+    : status.phase === 'done' ? '#22c55e' : '#7c3aed'
+  label.textContent = status.message
+
+  // Auto-hide after success
+  if (status.phase === 'done') {
+    setTimeout(() => { bar.style.display = 'none' }, 4000)
   }
 }
 
