@@ -10,7 +10,7 @@
  * session but resets on browser restart (intentionally — tab IDs change too).
  */
 
-/** @typedef {'chatgpt'|'claude'|'gemini'} Platform */
+/** @typedef {'chatgpt'|'claude'|'gemini'|'copilot'} Platform */
 /** @typedef {{ role: 'user'|'assistant', text: string, id?: string }} ConvMsg */
 
 // ---------------------------------------------------------------------------

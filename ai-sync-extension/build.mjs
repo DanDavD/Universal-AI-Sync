@@ -36,6 +36,7 @@ const ENTRIES = [
   ['content',    'chatgpt.js',        'src/content/chatgpt/index.js'],
   ['content',    'claude.js',         'src/content/claude/index.js'],
   ['content',    'gemini.js',         'src/content/gemini/index.js'],
+  ['content',    'copilot.js',        'src/content/copilot/index.js'],
   ['popup',      'popup.js',          'src/popup/popup.js'],
   ['options',    'options.js',        'src/options/options.js'],
 ]

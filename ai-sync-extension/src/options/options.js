@@ -9,12 +9,42 @@
 
 import { DEFAULT_SELECTORS, saveSelectors } from '../content/shared/selectorConfig.js'
 
-const PLATFORMS = /** @type {const} */ (['chatgpt', 'claude', 'gemini'])
+const PLATFORMS = /** @type {const} */ (['chatgpt', 'claude', 'gemini', 'copilot'])
+
+const BACKEND_URL = 'http://localhost:3000'
 
 /** @type {Record<string, HTMLFormElement>} */
 const forms = {}
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // ── License key UI ──────────────────────────────────────────────────────────
+  const licenseInput  = /** @type {HTMLInputElement} */ (document.getElementById('license-key-input'))
+  const licenseStatus = /** @type {HTMLElement} */ (document.getElementById('license-status'))
+  const activateBtn   = /** @type {HTMLButtonElement} */ (document.getElementById('btn-activate'))
+
+  if (licenseInput && activateBtn) {
+    const stored = await chrome.storage.local.get('licenseKey')
+    if (stored.licenseKey) {
+      licenseInput.value = stored.licenseKey
+      licenseStatus.textContent = 'Saved — checking…'
+      checkLicense(stored.licenseKey, licenseStatus)
+    }
+
+    activateBtn.addEventListener('click', async () => {
+      const key = licenseInput.value.trim().toUpperCase()
+      if (!key) return
+      activateBtn.disabled = true
+      licenseStatus.textContent = 'Validating…'
+      licenseStatus.style.color = '#71717a'
+      await checkLicense(key, licenseStatus)
+      if (licenseStatus.textContent?.startsWith('✓')) {
+        await chrome.storage.local.set({ licenseKey: key })
+      }
+      activateBtn.disabled = false
+    })
+  }
+
+  // ── Selector forms ───────────────────────────────────────────────────────────
   const data = await chrome.storage.local.get('selectorConfig')
   const overrides = data.selectorConfig ?? {}
 
@@ -60,6 +90,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('All data cleared — reload AI tabs')
   })
 })
+
+/**
+ * @param {string} key
+ * @param {HTMLElement} statusEl
+ */
+async function checkLicense(key, statusEl) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/license/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    })
+    const data = await res.json()
+    if (data.valid) {
+      statusEl.textContent = `✓ Active — ${data.email}`
+      statusEl.style.color = '#22c55e'
+    } else {
+      const msg = data.status === 'suspended' ? 'Payment failed — check your PayPal'
+        : data.status === 'cancelled' ? 'Subscription cancelled'
+        : 'Invalid license key'
+      statusEl.textContent = `✗ ${msg}`
+      statusEl.style.color = '#f87171'
+    }
+  } catch {
+    statusEl.textContent = 'Could not reach server'
+    statusEl.style.color = '#f87171'
+  }
+}
 
 /** @param {string} msg */
 function showToast(msg) {

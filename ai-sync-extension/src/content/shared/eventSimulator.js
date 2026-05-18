@@ -55,8 +55,12 @@ export function setNativeValue(el, value) {
  * @param {HTMLElement} el  A div[contenteditable="true"]
  * @param {string} text
  */
-export function setContentEditable(el, text) {
+export async function setContentEditable(el, text) {
   el.focus()
+
+  // Yield to the event loop before the heavy execCommand call so the browser
+  // can finish any pending layout/paint and not appear frozen mid-injection.
+  await new Promise((r) => setTimeout(r, 0))
 
   // Select everything so insertText replaces rather than appends.
   const sel = window.getSelection()
@@ -154,7 +158,7 @@ export async function injectAndSubmit(inputEl, submitEl, text, opts = {}) {
 
   if (inputEl.getAttribute('contenteditable') === 'true' ||
       inputEl.isContentEditable) {
-    setContentEditable(inputEl, text)
+    await setContentEditable(inputEl, text)
   } else {
     setNativeValue(/** @type {HTMLInputElement} */ (inputEl), text)
   }

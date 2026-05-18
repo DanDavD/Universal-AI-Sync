@@ -77,7 +77,7 @@ export function buildContextPrompt(conversation, opts = {}) {
  * @returns {string|null}  null if there are no user messages to transfer
  */
 export function buildMemoryPrompt(conversation, opts = {}) {
-  const { maxMessages = 60 } = opts
+  const { maxMessages = 60, maxCharsPerMsg = 500, totalCharBudget = 12000 } = opts
 
   const userMsgs = conversation
     .filter((m) => m.role === 'user')
@@ -85,15 +85,25 @@ export function buildMemoryPrompt(conversation, opts = {}) {
 
   if (!userMsgs.length) return null
 
-  const numbered = userMsgs
-    .map((m, i) => `${i + 1}. ${m.text}`)
-    .join('\n\n')
+  // Truncate individual messages first, then enforce a total budget so the
+  // injected string stays manageable regardless of message count or length.
+  let budget = totalCharBudget
+  const numbered = []
+  for (let i = 0; i < userMsgs.length; i++) {
+    const body = userMsgs[i].text.length > maxCharsPerMsg
+      ? userMsgs[i].text.slice(0, maxCharsPerMsg) + '…'
+      : userMsgs[i].text
+    if (budget - body.length < 0) break
+    budget -= body.length
+    numbered.push(`${i + 1}. ${body}`)
+  }
+  const numberedStr = numbered.join('\n\n')
 
   return [
     'I need you to remember the following information. I shared this with another AI assistant and I want you to have the same knowledge. Treat each item below as if I had told it to you directly — do not treat this as a conversation to continue.',
     '',
     '--- MEMORY TRANSFER START ---',
-    numbered,
+    numberedStr,
     '--- MEMORY TRANSFER END ---',
     '',
     'Please confirm you have read and memorized this information by briefly listing the key facts.',

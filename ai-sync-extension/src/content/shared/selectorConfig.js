@@ -9,7 +9,7 @@
  * so that multiple fallbacks can be tried as platforms update their DOM.
  */
 
-/** @type {Record<'chatgpt'|'claude'|'gemini', PlatformSelectors>} */
+/** @type {Record<'chatgpt'|'claude'|'gemini'|'copilot', PlatformSelectors>} */
 export const DEFAULT_SELECTORS = {
   chatgpt: {
     chatContainer:      'main',
@@ -36,6 +36,15 @@ export const DEFAULT_SELECTORS = {
     input:              '.ql-editor[contenteditable="true"], rich-textarea .ql-editor, div[contenteditable="true"][class*="ql-editor"]',
     submitBtn:          'button.send-button, button[aria-label*="Send"], button[aria-label*="send"], .send-button',
   },
+  copilot: {
+    chatContainer:      'main, [role="main"], .conversation-container, .chat-container',
+    // Wide fallback chain — Copilot has redesigned its DOM multiple times
+    userMessages:       '[data-testid="user-message"], .user-message, [class*="UserMessage"], [class*="user-message"], .HumanMessage, [class*="HumanMessage"]',
+    assistantMessages:  '[data-testid="bot-message"], [data-testid="copilot-message"], .bot-message, [class*="BotMessage"], [class*="bot-message"], .CopilotMessage, [class*="CopilotMessage"]',
+    messageText:        'p, li, code',
+    input:              'div[contenteditable="true"][role="textbox"], textarea[placeholder], #userInput, div[contenteditable="true"]',
+    submitBtn:          'button[aria-label*="Submit"], button[aria-label*="Send"], button[aria-label*="send"], button[type="submit"]',
+  },
 }
 
 /**
@@ -51,7 +60,7 @@ export const DEFAULT_SELECTORS = {
 
 /**
  * Loads the active selector config, merging storage overrides on top of defaults.
- * @param {'chatgpt'|'claude'|'gemini'} platform
+ * @param {'chatgpt'|'claude'|'gemini'|'copilot'} platform
  * @returns {Promise<PlatformSelectors>}
  */
 export async function loadSelectors(platform) {
@@ -68,7 +77,7 @@ export async function loadSelectors(platform) {
 
 /**
  * Saves updated selectors for a platform to storage.
- * @param {'chatgpt'|'claude'|'gemini'} platform
+ * @param {'chatgpt'|'claude'|'gemini'|'copilot'} platform
  * @param {Partial<PlatformSelectors>} partial
  */
 export async function saveSelectors(platform, partial) {

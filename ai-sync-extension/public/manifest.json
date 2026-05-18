@@ -10,7 +10,8 @@
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://copilot.microsoft.com/*"
   ],
 
   "background": {
@@ -31,6 +32,11 @@
     {
       "matches": ["https://gemini.google.com/*"],
       "js": ["content/gemini.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://copilot.microsoft.com/*"],
+      "js": ["content/copilot.js"],
       "run_at": "document_idle"
     }
   ],

@@ -56,6 +56,7 @@ async function getAiTabs() {
     'https://chatgpt.com/*',
     'https://claude.ai/*',
     'https://gemini.google.com/*',
+    'https://copilot.microsoft.com/*',
   ]
   const tabs = await chrome.tabs.query({ url: patterns })
   return tabs
@@ -191,7 +192,7 @@ function setStatus(msg) {
 
 /** @param {string} p */
 function platformLabel(p) {
-  const map = /** @type {Record<string,string>} */ ({ chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' })
+  const map = /** @type {Record<string,string>} */ ({ chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini', copilot: 'Copilot' })
   return map[p] ?? p
 }
 

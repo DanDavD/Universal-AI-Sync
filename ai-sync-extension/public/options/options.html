@@ -46,6 +46,7 @@
     .chatgpt { background: #10a37f22; color: #10a37f; }
     .claude  { background: #d9770622; color: #fbbf24; }
     .gemini  { background: #3b82f622; color: #60a5fa; }
+    .copilot { background: #0078d422; color: #38bdf8; }
 
     .platform-name { font-weight: 600; font-size: 14px; }
 
@@ -127,6 +128,27 @@
     AI platforms frequently update their DOM structure. If sync stops working, update the CSS
     selectors below and save. Changes take effect when you reload the AI tab.
   </p>
+
+  <!-- License -->
+  <div class="platform-section" style="margin-bottom:32px">
+    <div class="platform-header">
+      <span class="platform-badge" style="background:#7c3aed22;color:#a78bfa">License</span>
+      <span class="platform-name">Subscription</span>
+    </div>
+    <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div class="field">
+        <label>License Key</label>
+        <input type="text" id="license-key-input" placeholder="UAIS-XXXXXXXX-XXXXXXXX" style="font-family:'SF Mono','Fira Code',monospace;letter-spacing:2px" />
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button type="button" id="btn-activate" class="btn-save" style="border-color:#7c3aed;color:#a78bfa">Activate</button>
+        <span id="license-status" style="font-size:12px;color:#71717a"></span>
+      </div>
+      <p style="font-size:11px;color:#52525b">
+        Don't have a key? <a href="http://localhost:3000/checkout.html" target="_blank" style="color:#60a5fa;text-decoration:none">Subscribe here</a>
+      </p>
+    </div>
+  </div>
 
   <!-- ChatGPT -->
   <div class="platform-section">
@@ -237,6 +259,44 @@
       </div>
       <div class="form-actions">
         <button type="submit" class="btn-save">Save Gemini</button>
+        <button type="button" class="btn-reset">Reset to defaults</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Copilot -->
+  <div class="platform-section">
+    <div class="platform-header">
+      <span class="platform-badge copilot">Copilot</span>
+      <span class="platform-name">copilot.microsoft.com</span>
+    </div>
+    <form id="form-copilot">
+      <div class="field">
+        <label>Chat Container</label>
+        <input type="text" name="chatContainer" />
+      </div>
+      <div class="field">
+        <label>User Message Elements</label>
+        <input type="text" name="userMessages" />
+      </div>
+      <div class="field">
+        <label>Assistant Message Elements</label>
+        <input type="text" name="assistantMessages" />
+      </div>
+      <div class="field">
+        <label>Message Text Selectors</label>
+        <input type="text" name="messageText" />
+      </div>
+      <div class="field">
+        <label>Input (contenteditable / textarea)</label>
+        <input type="text" name="input" />
+      </div>
+      <div class="field">
+        <label>Submit Button</label>
+        <input type="text" name="submitBtn" />
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Save Copilot</button>
         <button type="button" class="btn-reset">Reset to defaults</button>
       </div>
     </form>
