@@ -81,8 +81,7 @@ const PANEL_CSS = /* css */`
 
 /**
  * @typedef {{
- *   onExport(): void,
- *   onExportMemory(): void,
+ *   onSync(): void,
  * }} OverlayCallbacks
  */
 
@@ -105,28 +104,19 @@ export function createOverlay(callbacks) {
   panel.className = 'panel'
   panel.innerHTML = `
     <div class="panel-header">AI Sync</div>
-    <button id="btn-export">
-      <span class="dot"></span>Export conv
-    </button>
-    <button id="btn-memory">
-      <span class="dot"></span>Export memory
+    <button id="btn-sync">
+      <span class="dot"></span>Sync context
     </button>
     <div class="status" id="status-line"></div>
   `
   shadow.appendChild(panel)
 
-  const btnExport = /** @type {HTMLButtonElement} */ (shadow.getElementById('btn-export'))
-  const btnMemory = /** @type {HTMLButtonElement} */ (shadow.getElementById('btn-memory'))
+  const btnSync   = /** @type {HTMLButtonElement} */ (shadow.getElementById('btn-sync'))
   const statusLine = /** @type {HTMLElement} */ (shadow.getElementById('status-line'))
 
-  btnExport.addEventListener('click', () => {
-    callbacks.onExport()
-    setStatus('Ready — open popup to push to target')
-  })
-
-  btnMemory.addEventListener('click', () => {
-    callbacks.onExportMemory()
-    setStatus('Ready — open popup to push memory')
+  btnSync.addEventListener('click', () => {
+    callbacks.onSync()
+    setStatus('Open popup to sync context')
   })
 
   /** @param {string} msg */

@@ -59,8 +59,7 @@ const app = {
 const tabListEl  = /** @type {HTMLElement} */ (document.getElementById('tab-list'))
 const slotSrcEl  = /** @type {HTMLElement} */ (document.getElementById('slot-source'))
 const slotDstEl  = /** @type {HTMLElement} */ (document.getElementById('slot-dest'))
-const btnExport  = /** @type {HTMLButtonElement} */ (document.getElementById('btn-export'))
-const btnMemory  = /** @type {HTMLButtonElement} */ (document.getElementById('btn-memory'))
+const btnSync    = /** @type {HTMLButtonElement} */ (document.getElementById('btn-sync'))
 const statusEl   = /** @type {HTMLElement} */ (document.getElementById('status'))
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
@@ -76,8 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   })
 
   document.getElementById('btn-refresh')?.addEventListener('click', refresh)
-  btnExport?.addEventListener('click', handleExport)
-  btnMemory?.addEventListener('click', handleExportMemory)
+  btnSync?.addEventListener('click', handleSync)
 
   // Restore in-progress transfer that survived a popup close
   const stored = await chrome.storage.session.get('transferStatus')
@@ -92,12 +90,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   await refresh()
 })
 
+// ── Selection persistence ──────────────────────────────────────────────────────
+
+/** Saves current source/dest tab IDs to session storage so they survive popup close. */
+function saveSelection() {
+  chrome.storage.session.set({
+    selectedSourceId: app.source?.id ?? null,
+    selectedDestId:   app.dest?.id   ?? null,
+  }).catch(() => {})
+}
+
 // ── Data Loading ───────────────────────────────────────────────────────────────
 async function refresh() {
   setStatus('Refreshing…')
   try {
     app.swState = await chrome.runtime.sendMessage({ type: 'GET_STATE' })
     app.tabs    = await discoverAiTabs()
+
+    // Restore previously selected tabs if they are still open
+    const saved = await chrome.storage.session.get(['selectedSourceId', 'selectedDestId'])
+    if (saved.selectedSourceId != null)
+      app.source = app.tabs.find((t) => t.id === saved.selectedSourceId) ?? null
+    if (saved.selectedDestId != null)
+      app.dest = app.tabs.find((t) => t.id === saved.selectedDestId) ?? null
+
+    // Set a sensible focus after restore
+    if (app.source && app.dest)      app.focus = 'source'
+    else if (app.source && !app.dest) app.focus = 'dest'
+
     render()
     setStatus('')
   } catch (err) {
@@ -255,8 +275,7 @@ function renderSlot(el, tab, slotName) {
 
 function updateButtons() {
   const both = app.source !== null && app.dest !== null
-  btnExport.disabled = !both
-  btnMemory.disabled = !both
+  btnSync.disabled = !both
 }
 
 // ── State Machine ──────────────────────────────────────────────────────────────
@@ -275,6 +294,7 @@ function onTabClick(tabId) {
   }
 
   render()
+  saveSelection()
 }
 
 /**
@@ -286,6 +306,7 @@ function clearSlot(slotName) {
   else                        app.dest   = null
   setFocus(slotName)
   render()
+  saveSelection()
 }
 
 /**
@@ -297,38 +318,15 @@ function setFocus(slotName) {
   // render() is called by the caller — no double render here
 }
 
-// ── Export Actions ─────────────────────────────────────────────────────────────
+// ── Sync Action ────────────────────────────────────────────────────────────────
 
-async function handleExport() {
+function handleSync() {
   if (!app.source || !app.dest) return
-  try {
-    setStatus('Scraping source tab…')
-    const scraped = await chrome.tabs.sendMessage(app.source.id, { type: 'SCRAPE_CONVERSATION' })
-    if (!scraped?.ok || !scraped.conversation?.length) {
-      setStatus('Nothing to export from source tab')
-      return
-    }
-    setStatus(`Pushing ${scraped.conversation.length} messages…`)
-    const result = await chrome.runtime.sendMessage({
-      type:         'EXPORT_CONVERSATION',
-      conversation: scraped.conversation,
-      targetTabId:  app.dest.id,
-    })
-    setStatus(result?.ok
-      ? `Exported ${scraped.conversation.length} messages ✓`
-      : 'Export failed: ' + (result?.error ?? 'unknown'))
-  } catch (err) {
-    setStatus('Error: ' + String(err))
-  }
-}
-
-async function handleExportMemory() {
-  if (!app.source || !app.dest) return
-  // Hand off to the background SW — it runs independently so the transfer
+  // Hand off to the background SW — it runs independently so the sync
   // survives if the user closes the popup or switches tabs.
-  applyProgress({ phase: 'scraping', message: 'Starting transfer…', pct: 5 })
+  applyProgress({ phase: 'summarizing', message: 'Starting context sync…', pct: 5 })
   chrome.runtime.sendMessage({
-    type:        'TRANSFER_MEMORY',
+    type:        'SYNC_CONTEXT',
     sourceTabId: app.source.id,
     destTabId:   app.dest.id,
   }).catch((err) => {

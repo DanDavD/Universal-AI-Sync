@@ -79,8 +79,8 @@ async function dispatch(msg, sender) {
     case 'UNREGISTER_TAB':     return unregisterTab(sender)
     case 'SET_MIRROR_PAIR':    return setMirrorPair(msg)
     case 'REMOVE_MIRROR_PAIR': return removeMirrorPair(msg)
-    case 'EXPORT_CONVERSATION':return exportConversation(msg)
-    case 'TRANSFER_MEMORY':    return transferMemory(msg)
+    case 'SYNC_CONTEXT':       return syncContext(msg)
+    case 'SYNC_DONE':          return syncDone()
     case 'MIRROR_MESSAGE':     return mirrorMessage(msg, sender)
     case 'GET_STATE':          return getState()
     default:
@@ -131,31 +131,39 @@ async function removeMirrorPair(msg) {
   return { ok: true }
 }
 
-async function exportConversation(msg) {
-  const { conversation, targetTabId } = msg
-  if (!tabRegistry.has(targetTabId)) return { error: `Target tab ${targetTabId} not registered` }
-  try {
-    return await chrome.tabs.sendMessage(targetTabId, { type: 'INJECT_CONVERSATION', conversation })
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) }
-  }
+/**
+ * Writes transfer progress to session storage and broadcasts it to any open popup.
+ * @param {string} phase
+ * @param {string} message
+ * @param {number} pct
+ */
+async function setProgress(phase, message, pct) {
+  await chrome.storage.session.set({ transferStatus: { phase, message, pct } })
+  chrome.runtime.sendMessage({ type: 'TRANSFER_PROGRESS', phase, message, pct }).catch(() => {})
 }
 
 /**
- * Full memory transfer orchestrated by the SW so it survives popup close / tab switch.
- * Progress is written to storage.session so the popup can read it whether it's open or not.
+ * Called by the destination content script once the AI finishes its response.
+ * Fires the final "done" progress update so the popup turns green.
  */
-async function transferMemory(msg) {
+async function syncDone() {
+  await setProgress('done', 'Context synced successfully', 100)
+  return { ok: true }
+}
+
+/**
+ * Context sync orchestrated by the SW so it survives popup close / tab switch.
+ *
+ * Scrapes the source conversation silently (no injection into source AI), strips
+ * filler noise locally, builds a clean prompt, then injects it into the destination.
+ *
+ * Progress is written to storage.session so the popup can restore it on reopen.
+ */
+async function syncContext(msg) {
   const { sourceTabId, destTabId } = msg
 
-  const setProgress = async (phase, message, pct) => {
-    await chrome.storage.session.set({ transferStatus: { phase, message, pct } })
-    // Best-effort push to popup if it's still open
-    chrome.runtime.sendMessage({ type: 'TRANSFER_PROGRESS', phase, message, pct }).catch(() => {})
-  }
-
   try {
-    await setProgress('scraping', 'Reading source tab…', 15)
+    await setProgress('scraping', 'Reading source conversation…', 20)
     const scraped = await chrome.tabs.sendMessage(sourceTabId, { type: 'SCRAPE_CONVERSATION' })
 
     if (!scraped?.ok || !scraped.conversation?.length) {
@@ -163,40 +171,121 @@ async function transferMemory(msg) {
       return { error: 'Nothing scraped' }
     }
 
-    const userCount = scraped.conversation.filter(
-      /** @param {any} m */ (m) => m.role === 'user'
-    ).length
+    // Trim to platform budget so the chunk count stays manageable
+    const destPlatform = tabRegistry.get(destTabId) ?? 'chatgpt'
+    const budget = PLATFORM_BUDGETS[destPlatform] ?? 60000
+    const conversation = trimToBudget(scraped.conversation, budget)
+    const trimNote = conversation.length < scraped.conversation.length
+      ? ` (last ${conversation.length} of ${scraped.conversation.length} messages)`
+      : ` (${conversation.length} messages)`
 
-    if (!userCount) {
-      await setProgress('error', 'No user messages found', 0)
-      return { error: 'No user messages' }
-    }
+    // Build the clean prompt locally — strip noise per message, format both roles
+    const summary = buildLocalSyncPrompt(conversation)
 
-    await setProgress('building', `Building prompt from ${userCount} memories…`, 45)
-    await sleep(250) // brief pause so the label is readable before the next phase
-
-    await setProgress('injecting', `Injecting ${userCount} memories into target…`, 75)
-    const result = await chrome.tabs.sendMessage(destTabId, {
-      type: 'INJECT_MEMORY',
-      conversation: scraped.conversation,
+    await setProgress('syncing', `Syncing${trimNote}…`, 75)
+    const injectResult = await chrome.tabs.sendMessage(destTabId, {
+      type: 'INJECT_SYNC',
+      summary,
     })
 
-    if (result?.ok) {
-      await setProgress('done', `${userCount} memories transferred — AI is processing`, 100)
-      return { ok: true, userCount }
+    if (injectResult?.ok) {
+      // Parts delivered — content script will send SYNC_DONE when AI finishes
+      await setProgress('syncing', 'Parts delivered — waiting for AI…', 90)
+      return { ok: true }
     }
 
-    const errMsg = result?.error ?? 'unknown error'
-    await setProgress('error', `Transfer failed: ${errMsg}`, 0)
+    const errMsg = injectResult?.error ?? 'unknown error'
+    await setProgress('error', `Sync failed: ${errMsg}`, 0)
     return { error: errMsg }
 
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     await chrome.storage.session.set({
-      transferStatus: { phase: 'error', message: errMsg, pct: 0 }
+      transferStatus: { phase: 'error', message: errMsg, pct: 0 },
     })
     return { error: errMsg }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Platform content budgets — max chars of raw conversation to sync.
+// Keeps part count sensible regardless of conversation length.
+// Most-recent messages are always kept; oldest are dropped when over budget.
+// ---------------------------------------------------------------------------
+
+/** @type {Record<Platform, number>} */
+const PLATFORM_BUDGETS = {
+  chatgpt: 60000,  // ~5 parts @ 12k/chunk
+  claude:  80000,  // ~3 parts @ 25k/chunk
+  gemini:  48000,  // ~4 parts @ 12k/chunk
+  copilot: 35000,  // ~5 parts @ 6.5k/chunk
+}
+
+/**
+ * Returns the most recent messages that fit within `maxChars` total text,
+ * dropping the oldest ones first.
+ *
+ * @param {ConvMsg[]} conversation
+ * @param {number} maxChars
+ * @returns {ConvMsg[]}
+ */
+function trimToBudget(conversation, maxChars) {
+  let total = 0
+  const kept = []
+  for (let i = conversation.length - 1; i >= 0; i--) {
+    const approx = conversation[i].text.length + 20 // +20 for "Human: \n\n" overhead
+    if (total + approx > maxChars && kept.length >= 2) break
+    kept.unshift(conversation[i])
+    total += approx
+  }
+  return kept
+}
+
+// ---------------------------------------------------------------------------
+// Local prompt builder (mirrors parser.js — inlined so the SW bundle is self-contained)
+// ---------------------------------------------------------------------------
+
+const SW_FILLER_PATTERNS = [
+  /^(Great|Good|Excellent|Perfect|Wonderful|Fantastic|Awesome|Sure|Certainly|Absolutely|Of course|Definitely)\s*(question|point|idea|observation|thinking)?[!.,]?\s*/gim,
+  /^I'?d be happy to help[!.,]?\s*/gim,
+  /^I'?ll help (you )?(with that)?[!.,]?\s*/gim,
+  /^Happy to help[!.,]?\s*/gim,
+  /^(As (a|an) AI (language model|assistant|chatbot),?\s*)/gim,
+  /^(As we (discussed|mentioned|talked about) (earlier|before|previously),?\s*)/gim,
+  /\s*I hope (this|that) helps?[!.]?\s*$/gim,
+  /\s*Feel free to (ask|reach out)( if you have| for)? any (more )?(questions?|help|clarification)[!.]?\s*$/gim,
+  /\s*Let me know if you (need|have|want) (any )?(more )?(help|questions?|clarification|assistance)[!.]?\s*$/gim,
+  /\s*Is there (anything|something) else (I can help (you )?with|you'?d? ?(like)?)[?!.]?\s*$/gim,
+  /\s*Don'?t hesitate to ask[!.]?\s*$/gim,
+  /\s*Let me know if (you need|that makes sense|this helps)[!.]?\s*$/gim,
+]
+
+/** @param {string} text */
+function swStripNoise(text) {
+  let cleaned = text
+  for (const p of SW_FILLER_PATTERNS) cleaned = cleaned.replace(p, '')
+  return cleaned.trim()
+}
+
+/** @param {ConvMsg[]} conversation */
+function buildLocalSyncPrompt(conversation) {
+  const lines = conversation
+    .map((m) => {
+      const label = m.role === 'user' ? 'Human' : 'Assistant'
+      const text  = swStripNoise(m.text)
+      return text ? `${label}: ${text}` : null
+    })
+    .filter((l) => l !== null)
+
+  return [
+    '[Context Transfer] The following is a full conversation from another AI assistant session. Please read and internalize this as our shared context going forward:',
+    '',
+    '--- CONTEXT START ---',
+    lines.join('\n\n'),
+    '--- CONTEXT END ---',
+    '',
+    'Please confirm you have received this context by briefly acknowledging the main topics covered.',
+  ].join('\n')
 }
 
 /** @param {number} ms */

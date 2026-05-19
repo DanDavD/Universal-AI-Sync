@@ -1,10 +1,9 @@
 // @ts-check
 import { loadSelectors } from '../shared/selectorConfig.js'
-import { createChatObserver, waitForElement } from '../shared/observer.js'
 import { createOverlay } from '../shared/overlay.js'
+import { waitForDomQuiet } from '../shared/observer.js'
 import { scrapeConversation } from './scraper.js'
-import { injectConversation, injectMemory } from './injector.js'
-import { msgId } from '../shared/parser.js'
+import { injectSync } from './injector.js'
 
 const PLATFORM = 'chatgpt'
 
@@ -14,58 +13,40 @@ let sel
 /** @type {ReturnType<typeof createOverlay>} */
 let overlay
 
-let myTabId = /** @type {number|null} */ (null)
-
 async function init() {
   sel = await loadSelectors(PLATFORM)
-  const reg = await chrome.runtime.sendMessage({ type: 'REGISTER_TAB', platform: PLATFORM })
-  myTabId = reg?.tabId ?? null
+  await chrome.runtime.sendMessage({ type: 'REGISTER_TAB', platform: PLATFORM })
 
-  overlay = createOverlay({
-    onExport: handleExport,
-    onExportMemory: handleExportMemory,
-  })
-
+  overlay = createOverlay({ onSync: handleSync })
   chrome.runtime.onMessage.addListener(handleBackgroundMessage)
 }
 
-function handleExport() {
-  const conversation = scrapeConversation(sel)
-  overlay.setStatus(
-    conversation.length
-      ? `${conversation.length} msgs ready — open popup to push`
-      : 'Nothing to export'
-  )
-}
-
-function handleExportMemory() {
-  const conversation = scrapeConversation(sel)
-  const userCount = conversation.filter((m) => m.role === 'user').length
-  overlay.setStatus(
-    userCount
-      ? `${userCount} user messages ready — open popup to push memory`
-      : 'No user messages found'
-  )
+function handleSync() {
+  overlay.setStatus('Open popup to sync context')
 }
 
 function handleBackgroundMessage(msg, _sender, sendResponse) {
   ;(async () => {
     try {
-      if (msg.type === 'INJECT_CONVERSATION') {
-        await injectConversation(msg.conversation, sel)
-        overlay.setStatus('Conversation imported')
+      if (msg.type === 'INJECT_SYNC') {
+        await injectSync(msg.summary, sel)
+        // Reply immediately — don't block on AI response
         sendResponse({ ok: true })
-      } else if (msg.type === 'INJECT_MEMORY') {
-        await injectMemory(msg.conversation, sel)
-        overlay.setStatus('Memory transferred — AI is processing')
-        sendResponse({ ok: true })
+        overlay.setStatus('Context sent — waiting for AI…')
+        // Watch for page to go quiet (AI finished streaming), then notify SW
+        waitForDomQuiet(2000, 90000)
+          .then(() => {
+            chrome.runtime.sendMessage({ type: 'SYNC_DONE' }).catch(() => {})
+            overlay.setStatus('Context synced successfully')
+          })
+          .catch(() => {})
       } else if (msg.type === 'SCRAPE_CONVERSATION') {
         sendResponse({ ok: true, conversation: scrapeConversation(sel) })
       } else {
         sendResponse({ error: 'Unknown message type' })
       }
     } catch (err) {
-      overlay.setStatus('Error: ' + (err instanceof Error ? err.message : String(err)))
+      overlay.setStatus('Error: ' + String(err))
       sendResponse({ error: String(err) })
     }
   })()

@@ -305,15 +305,12 @@
     }
 
     /* ── Action Buttons ────────────────────────────────────────────────────── */
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
+    .actions { display: flex; }
     .action-btn {
       all: unset;
       cursor: pointer;
-      padding: 8px 10px;
+      flex: 1;
+      padding: 9px 10px;
       border-radius: 8px;
       font-size: 12px;
       font-weight: 500;
@@ -326,10 +323,8 @@
     .action-btn:hover:not(:disabled) { background: var(--elevated); }
     .action-btn:disabled { opacity: 0.28; cursor: not-allowed; }
 
-    #btn-export { border-color: #16a34a; color: #4ade80; }
-    #btn-export:disabled { border-color: var(--border); color: var(--text-2); }
-    #btn-memory { border-color: var(--purple); color: #a78bfa; }
-    #btn-memory:disabled { border-color: var(--border); color: var(--text-2); }
+    #btn-sync { border-color: var(--purple); color: #a78bfa; }
+    #btn-sync:disabled { border-color: var(--border); color: var(--text-2); }
 
     /* ── Footer ────────────────────────────────────────────────────────────── */
     footer {
@@ -419,8 +414,7 @@
 
   <!-- ── Action Buttons ───────────────────────────────────────────────────── -->
   <div class="actions">
-    <button class="action-btn" id="btn-export" disabled>↗ Export Conv</button>
-    <button class="action-btn" id="btn-memory" disabled>🧠 Export Memory</button>
+    <button class="action-btn" id="btn-sync" disabled>⚡ Sync Context</button>
   </div>
 
   <!-- ── Footer ───────────────────────────────────────────────────────────── -->

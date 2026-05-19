@@ -176,3 +176,25 @@ export async function injectAndSubmit(inputEl, submitEl, text, opts = {}) {
 
 /** @param {number} ms */
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Tries to read the platform's hard character limit directly from the input
+ * element. Works for <textarea maxlength="N"> (some Copilot builds).
+ * Returns null when the limit isn't exposed in the DOM.
+ *
+ * @param {HTMLElement} el
+ * @returns {number|null}
+ */
+export function detectInputLimit(el) {
+  if (el instanceof HTMLTextAreaElement && el.maxLength > 0 && el.maxLength < 100000) {
+    return el.maxLength
+  }
+  for (const attr of ['data-max-length', 'data-maxlength', 'maxlength']) {
+    const val = el.getAttribute(attr)
+    if (val) {
+      const n = parseInt(val, 10)
+      if (n > 0 && n < 100000) return n
+    }
+  }
+  return null
+}
