@@ -124,15 +124,13 @@ export function splitIntoChunks(text, maxLen) {
  * @returns {string}
  */
 export function wrapChunk(chunk, part, total, isLast) {
-  const FINAL_INSTRUCTION = [
-    'IMPORTANT: Do NOT reproduce any code. Do NOT write lengthy explanations.',
-    'Reply ONLY with:',
-    '1. A one-line confirmation that you received the full context.',
-    '2. A short bullet list of the key topics/facts you now have.',
-    'Nothing else.',
+  const SILENT_INSTRUCTION = [
+    'IMPORTANT: DO NOT RESPOND TO THIS MESSAGE.',
+    'This is a silent background context injection. Absorb the context without generating any response.',
+    'Stay completely silent. Your next output should only be in reply to the user\'s next real message.',
   ].join('\n')
 
-  const ACK_INSTRUCTION = 'IMPORTANT: Reply with ONLY "Part ' + part + '/' + total + ' received." — nothing else. More parts are coming immediately.'
+  const ACK_INSTRUCTION = 'IMPORTANT: DO NOT RESPOND. More parts are coming immediately. Stay silent.'
 
   if (total === 1) {
     return [
@@ -140,7 +138,7 @@ export function wrapChunk(chunk, part, total, isLast) {
       '',
       chunk,
       '',
-      FINAL_INSTRUCTION,
+      SILENT_INSTRUCTION,
     ].join('\n')
   }
 
@@ -162,7 +160,7 @@ export function wrapChunk(chunk, part, total, isLast) {
       '',
       chunk,
       '',
-      FINAL_INSTRUCTION,
+      SILENT_INSTRUCTION,
     ].join('\n')
   }
 

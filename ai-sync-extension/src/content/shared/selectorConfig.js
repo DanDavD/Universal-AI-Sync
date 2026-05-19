@@ -18,15 +18,16 @@ export const DEFAULT_SELECTORS = {
     messageText:        '.whitespace-pre-wrap, .markdown p, .markdown li, .markdown pre code, p',
     input:              '#prompt-textarea, [contenteditable="true"][id="prompt-textarea"], div[contenteditable="true"][data-testid="prompt-textarea"]',
     submitBtn:          '[data-testid="send-button"], button[aria-label="Send message"], button[aria-label="Send prompt"]',
+    stopBtn:            'button[data-testid="stop-button"], button[aria-label="Stop streaming"], button[aria-label="Stop generating"]',
   },
   claude: {
     chatContainer:      '[data-testid="conversation-content"], .flex-1, main',
-    // Wide fallback chain — Claude has changed this DOM several times
     userMessages:       '[data-testid="human-turn"], [data-testid="user-message"], .human-turn, [class*="humanTurn"], [class*="HumanTurn"], [class*="human_turn"]',
     assistantMessages:  '[data-testid="ai-turn"], [data-testid="assistant-message"], .ai-turn, [class*="aiTurn"], [class*="AiTurn"], [class*="ai_turn"]',
     messageText:        'p, li, code',
     input:              '.ProseMirror[contenteditable="true"], [contenteditable="true"].ProseMirror, div[contenteditable="true"][class*="ProseMirror"]',
     submitBtn:          'button[aria-label="Send message"], button[aria-label="Send Message"], [data-testid="send-message-button"], button[type="submit"]',
+    stopBtn:            'button[aria-label="Stop Response"], button[aria-label="Stop"], button[data-testid="stop-button"]',
   },
   gemini: {
     chatContainer:      'chat-history, infinite-scroller, .conversation-container',
@@ -35,15 +36,16 @@ export const DEFAULT_SELECTORS = {
     messageText:        '.query-text, .response-content p, .model-response-text p, p, [class*="query-text"]',
     input:              '.ql-editor[contenteditable="true"], rich-textarea .ql-editor, div[contenteditable="true"][class*="ql-editor"]',
     submitBtn:          'button.send-button, button[aria-label*="Send"], button[aria-label*="send"], .send-button',
+    stopBtn:            'button[aria-label="Stop response"], button[aria-label*="Stop"], .stop-button',
   },
   copilot: {
     chatContainer:      'main, [role="main"], .conversation-container, .chat-container',
-    // Wide fallback chain — Copilot has redesigned its DOM multiple times
     userMessages:       '[data-testid="user-message"], .user-message, [class*="UserMessage"], [class*="user-message"], .HumanMessage, [class*="HumanMessage"]',
     assistantMessages:  '[data-testid="bot-message"], [data-testid="copilot-message"], .bot-message, [class*="BotMessage"], [class*="bot-message"], .CopilotMessage, [class*="CopilotMessage"]',
     messageText:        'p, li, code',
     input:              'div[contenteditable="true"][role="textbox"], textarea[placeholder], #userInput, div[contenteditable="true"]',
     submitBtn:          'button[aria-label*="Submit"], button[aria-label*="Send"], button[aria-label*="send"], button[type="submit"]',
+    stopBtn:            'button[aria-label*="Stop"], button[aria-label*="stop"]',
   },
 }
 
@@ -55,6 +57,7 @@ export const DEFAULT_SELECTORS = {
  *   messageText: string,
  *   input: string,
  *   submitBtn: string,
+ *   stopBtn: string,
  * }} PlatformSelectors
  */
 

@@ -1,5 +1,5 @@
 // @ts-check
-import { injectAndSubmit, sleep } from '../shared/eventSimulator.js'
+import { injectAndSubmit, clickElement, sleep } from '../shared/eventSimulator.js'
 import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
@@ -29,6 +29,15 @@ export async function injectSync(summary, sel) {
   for (let i = 0; i < chunks.length; i++) {
     const isLast = i === chunks.length - 1
     await injectText(wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel, { autoSubmit: true })
-    if (!isLast) await sleep(CHUNK_DELAY)
+    if (!isLast) {
+      await sleep(CHUNK_DELAY)
+    } else {
+      // Click stop immediately so AI absorbs context without generating a response
+      for (let t = 0; t < 20; t++) {
+        const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
+        if (stop) { clickElement(stop); break }
+        await sleep(150)
+      }
+    }
   }
 }
