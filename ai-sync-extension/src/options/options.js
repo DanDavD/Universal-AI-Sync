@@ -11,7 +11,7 @@ import { DEFAULT_SELECTORS, saveSelectors } from '../content/shared/selectorConf
 
 const PLATFORMS = /** @type {const} */ (['chatgpt', 'claude', 'gemini', 'copilot'])
 
-const BACKEND_URL = 'http://localhost:3000'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
 /** @type {Record<string, HTMLFormElement>} */
 const forms = {}
