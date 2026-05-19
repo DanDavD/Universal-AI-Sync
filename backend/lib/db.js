@@ -1,24 +1,8 @@
 'use strict'
-const Database = require('better-sqlite3')
-const path = require('path')
-const crypto = require('crypto')
+const crypto    = require('crypto')
+const supabase  = require('./supabase')
 
-const db = new Database(path.join(__dirname, '..', 'subscriptions.db'))
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS subscriptions (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    email                 TEXT NOT NULL,
-    paypal_subscription_id TEXT UNIQUE,
-    license_key           TEXT UNIQUE NOT NULL,
-    status                TEXT NOT NULL DEFAULT 'pending',
-    created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_license_key ON subscriptions(license_key);
-  CREATE INDEX IF NOT EXISTS idx_paypal_sub  ON subscriptions(paypal_subscription_id);
-`)
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Generates a human-readable license key: UAIS-XXXXXXXX-XXXXXXXX */
 function generateLicenseKey() {
@@ -27,61 +11,191 @@ function generateLicenseKey() {
   return `UAIS-${a}-${b}`
 }
 
-const stmts = {
-  insert: db.prepare(`
-    INSERT INTO subscriptions (email, paypal_subscription_id, license_key, status)
-    VALUES (@email, @paypal_subscription_id, @license_key, @status)
-  `),
-  updateStatus: db.prepare(`
-    UPDATE subscriptions
-    SET status = @status, updated_at = datetime('now')
-    WHERE paypal_subscription_id = @paypal_subscription_id
-  `),
-  findByLicense: db.prepare(`
-    SELECT * FROM subscriptions WHERE license_key = ?
-  `),
-  findByPaypalId: db.prepare(`
-    SELECT * FROM subscriptions WHERE paypal_subscription_id = ?
-  `),
+/** Throws if Supabase returned an error. */
+function check(error, context) {
+  if (error) throw new Error(`[db] ${context}: ${error.message}`)
+}
+
+// ── Free users ───────────────────────────────────────────────────────────────
+
+/**
+ * Registers a new free user. Silently ignores duplicate emails.
+ * @param {{ email: string }} params
+ * @returns {Promise<{ isNew: boolean, user: object }>}
+ */
+async function registerFreeUser({ email }) {
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (existing) return { isNew: false, user: existing }
+
+  const { data, error } = await supabase
+    .from('users')
+    .insert({ email, plan: 'free', status: 'active' })
+    .select()
+    .single()
+
+  check(error, 'registerFreeUser')
+  return { isNew: true, user: data }
+}
+
+// ── Premium / PayPal ─────────────────────────────────────────────────────────
+
+/**
+ * Creates a pending premium record when the user starts the PayPal checkout.
+ * The record becomes active once PayPal confirms payment.
+ * @param {{ email: string, paypalSubscriptionId: string }} params
+ * @returns {Promise<string>} The generated license key.
+ */
+async function createPending({ email, paypalSubscriptionId }) {
+  const licenseKey = generateLicenseKey()
+
+  // Upsert so re-attempting checkout doesn't create duplicates
+  const { error } = await supabase
+    .from('users')
+    .upsert(
+      {
+        email,
+        plan:                    'premium',
+        status:                  'pending',
+        paypal_subscription_id:  paypalSubscriptionId,
+        license_key:             licenseKey,
+      },
+      { onConflict: 'email' }
+    )
+
+  check(error, 'createPending')
+  return licenseKey
+}
+
+/**
+ * Updates a user's subscription status after a PayPal webhook event.
+ * @param {{ paypalSubscriptionId: string, status: string }} params
+ */
+async function updateStatus({ paypalSubscriptionId, status }) {
+  const { error } = await supabase
+    .from('users')
+    .update({ status })
+    .eq('paypal_subscription_id', paypalSubscriptionId)
+
+  check(error, 'updateStatus')
+}
+
+/**
+ * Validates a license key and returns the user's plan info.
+ * @param {string} licenseKey
+ * @returns {Promise<{ valid: boolean, plan: string, status: string, email: string }|null>}
+ */
+async function validateLicense(licenseKey) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('email, plan, status')
+    .eq('license_key', licenseKey.trim().toUpperCase())
+    .maybeSingle()
+
+  if (error) { console.error('[db] validateLicense:', error.message); return null }
+  if (!data)  return null
+
+  return {
+    valid:  data.plan === 'premium' && data.status === 'active',
+    plan:   data.plan,
+    status: data.status,
+    email:  data.email,
+  }
+}
+
+/**
+ * Looks up a user by PayPal subscription ID.
+ * @param {string} paypalSubscriptionId
+ */
+async function findByPaypalId(paypalSubscriptionId) {
+  const { data } = await supabase
+    .from('users')
+    .select('*')
+    .eq('paypal_subscription_id', paypalSubscriptionId)
+    .maybeSingle()
+  return data ?? null
+}
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns all users, newest first.
+ * @param {{ search?: string, plan?: string, page?: number, perPage?: number }} opts
+ */
+async function getAllUsers({ search = '', plan = '', page = 1, perPage = 50 } = {}) {
+  let query = supabase
+    .from('users')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range((page - 1) * perPage, page * perPage - 1)
+
+  if (plan) query = query.eq('plan', plan)
+  if (search) query = query.ilike('email', `%${search}%`)
+
+  const { data, error, count } = await query
+  check(error, 'getAllUsers')
+  return { users: data ?? [], total: count ?? 0 }
+}
+
+/**
+ * Returns aggregate stats.
+ */
+async function getStats() {
+  const { data, error } = await supabase
+    .from('user_stats')
+    .select('*')
+    .single()
+
+  if (error) {
+    // Fallback manual count if the view doesn't exist yet
+    const { count: total }   = await supabase.from('users').select('*', { count: 'exact', head: true })
+    const { count: premium } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('plan', 'premium')
+    return { total: total ?? 0, premium: premium ?? 0, free_users: (total ?? 0) - (premium ?? 0) }
+  }
+  return data
+}
+
+/**
+ * Manually sets a user's plan (admin override).
+ * @param {{ id: string, plan: 'free'|'premium', status?: string }} params
+ */
+async function setUserPlan({ id, plan, status }) {
+  const update = { plan }
+  if (status) update.status = status
+
+  const { data, error } = await supabase
+    .from('users')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .single()
+
+  check(error, 'setUserPlan')
+  return data
+}
+
+/**
+ * Deletes a user record.
+ * @param {string} id
+ */
+async function deleteUser(id) {
+  const { error } = await supabase.from('users').delete().eq('id', id)
+  check(error, 'deleteUser')
 }
 
 module.exports = {
-  /**
-   * Creates a pending subscription record before redirecting user to PayPal.
-   * @param {{ email: string, paypalSubscriptionId: string }} params
-   * @returns {string} license_key
-   */
-  createPending({ email, paypalSubscriptionId }) {
-    const license_key = generateLicenseKey()
-    stmts.insert.run({
-      email,
-      paypal_subscription_id: paypalSubscriptionId,
-      license_key,
-      status: 'pending',
-    })
-    return license_key
-  },
-
-  /**
-   * Updates subscription status (active, cancelled, suspended).
-   * @param {{ paypalSubscriptionId: string, status: string }} params
-   */
-  updateStatus({ paypalSubscriptionId, status }) {
-    stmts.updateStatus.run({ status, paypal_subscription_id: paypalSubscriptionId })
-  },
-
-  /**
-   * Validates a license key. Returns { valid, email, status } or null if not found.
-   * @param {string} licenseKey
-   */
-  validateLicense(licenseKey) {
-    const row = stmts.findByLicense.get(licenseKey.trim().toUpperCase())
-    if (!row) return null
-    return { valid: row.status === 'active', email: row.email, status: row.status }
-  },
-
-  /** @param {string} paypalSubscriptionId */
-  findByPaypalId(paypalSubscriptionId) {
-    return stmts.findByPaypalId.get(paypalSubscriptionId) ?? null
-  },
+  registerFreeUser,
+  createPending,
+  updateStatus,
+  validateLicense,
+  findByPaypalId,
+  getAllUsers,
+  getStats,
+  setUserPlan,
+  deleteUser,
 }

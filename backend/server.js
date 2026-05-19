@@ -27,6 +27,8 @@ app.use(express.static(path.join(__dirname, 'public')))
 // ---------------------------------------------------------------------------
 app.use('/api/paypal',  require('./routes/paypal'))
 app.use('/api/license', require('./routes/license'))
+app.use('/api/users',  require('./routes/users'))
+app.use('/api/admin',  require('./routes/admin'))
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
