@@ -268,7 +268,7 @@
     .slot-label {
       font-size: 9px;
       font-weight: 700;
-      color: var(--text-3);
+      color: var(--blue);
       text-transform: uppercase;
       letter-spacing: .06em;
     }
@@ -305,7 +305,7 @@
     }
 
     /* ── Action Buttons ────────────────────────────────────────────────────── */
-    .actions { display: flex; }
+    .actions { display: flex; gap: 6px; }
     .action-btn {
       all: unset;
       cursor: pointer;
@@ -325,6 +325,153 @@
 
     #btn-sync { border-color: var(--purple); color: #a78bfa; }
     #btn-sync:disabled { border-color: var(--border); color: var(--text-2); }
+
+    #btn-file { border-color: var(--green); color: var(--green); }
+    #btn-file:disabled { border-color: var(--border); color: var(--text-2); }
+    #btn-file.btn--locked { border-color: var(--border); color: var(--text-3); opacity: 0.7; cursor: pointer; }
+    #btn-file.btn--locked:hover { background: var(--elevated); opacity: 1; }
+
+    /* ── Plan badge variants ───────────────────────────────────────────────── */
+    .header-badge--free    { background: var(--elevated); color: var(--text-3); }
+    .header-badge--premium { background: var(--blue); color: #fff; }
+    .header-badge--checking { background: var(--elevated); color: var(--text-3); }
+
+    /* ── Views ─────────────────────────────────────────────────────────────── */
+    #view-main    { display: contents; }
+    #view-upgrade { display: none; flex-direction: column; gap: 10px; }
+    #view-upgrade.visible { display: flex; }
+
+    /* ── Upgrade view internals ────────────────────────────────────────────── */
+    .upgrade-back {
+      all: unset;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-3);
+      transition: color 120ms;
+      width: fit-content;
+    }
+    .upgrade-back:hover { color: var(--text-2); }
+
+    .upgrade-hero {
+      text-align: center;
+      padding: 4px 0 2px;
+    }
+    .upgrade-icon { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+    .upgrade-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .upgrade-sub {
+      font-size: 11px;
+      color: var(--text-3);
+      line-height: 1.4;
+    }
+
+    .upgrade-price {
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 16px;
+    }
+    .upgrade-price-amount {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -.02em;
+    }
+    .upgrade-price-note { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+
+    .upgrade-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .upgrade-features li {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: var(--text-2);
+    }
+    .upgrade-features li .feat-check { color: var(--green); font-size: 11px; flex-shrink: 0; }
+    .upgrade-features li .feat-star  { color: #f59e0b; font-size: 10px; flex-shrink: 0; }
+
+    .upgrade-form { display: flex; flex-direction: column; gap: 6px; }
+    .upgrade-input {
+      all: unset;
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      padding: 8px 10px;
+      transition: border-color 120ms;
+    }
+    .upgrade-input:focus { border-color: var(--blue); }
+    .upgrade-input::placeholder { color: var(--text-3); }
+
+    .upgrade-cta {
+      all: unset;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px;
+      border-radius: 8px;
+      transition: background 120ms, transform 80ms;
+    }
+    .upgrade-cta:hover  { background: #1d4ed8; }
+    .upgrade-cta:active { transform: scale(.98); }
+    .upgrade-cta:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .upgrade-sep {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-3);
+      font-size: 10px;
+    }
+    .upgrade-sep::before,
+    .upgrade-sep::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
+
+    .upgrade-key-status {
+      font-size: 10px;
+      color: var(--text-3);
+      min-height: 14px;
+      text-align: center;
+    }
+
+    /* ── Cooldown notice ───────────────────────────────────────────────────── */
+    #cooldown-notice {
+      font-size: 10px;
+      color: var(--text-3);
+      text-align: center;
+      min-height: 13px;
+      letter-spacing: .01em;
+    }
+    .cooldown-upgrade {
+      all: unset;
+      color: var(--blue);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: .01em;
+    }
+    .cooldown-upgrade:hover { text-decoration: underline; color: #60a5fa; }
 
     /* ── Footer ────────────────────────────────────────────────────────────── */
     footer {
@@ -359,6 +506,27 @@
       transition: var(--ease);
     }
     .options-link:hover { color: var(--text-2); background: var(--surface); }
+
+    /* ── Header upgrade CTA (free users, sits left of the plan badge) ─────────── */
+    #btn-upgrade-footer {
+      all: unset;
+      display: none;
+      cursor: pointer;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--blue);
+      padding: 2px 7px;
+      border-radius: 99px;
+      border: 1px solid rgba(59,130,246,.45);
+      background: rgba(59,130,246,.12);
+      transition: var(--ease);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    #btn-upgrade-footer.visible { display: flex; }
+    #btn-upgrade-footer:hover   { background: rgba(59,130,246,.22); color: #93c5fd; }
   </style>
 </head>
 <body>
@@ -366,65 +534,116 @@
   <!-- ── Header ───────────────────────────────────────────────────────────── -->
   <header>
     <span class="header-title">Universal AI Sync</span>
-    <span class="header-badge">MV3</span>
+    <div style="display:flex;align-items:center;gap:5px;">
+      <button id="btn-upgrade-footer" class="visible" title="Upgrade to Premium — unlock file sync and more">Upgrade</button>
+      <span class="header-badge header-badge--free" id="header-badge">Free</span>
+    </div>
   </header>
 
-  <!-- ── AI Tabs List ─────────────────────────────────────────────────────── -->
-  <section>
-    <div class="section-label">Open AI Tabs</div>
-    <div id="tab-list"><p class="empty-msg">Loading…</p></div>
-  </section>
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- MAIN VIEW                                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-main">
 
-  <div class="divider"></div>
+    <!-- ── AI Tabs List ───────────────────────────────────────────────────── -->
+    <section>
+      <div class="section-label">Open AI Tabs</div>
+      <div id="tab-list"><p class="empty-msg">Loading…</p></div>
+    </section>
 
-  <!-- ── Sync Flow ────────────────────────────────────────────────────────── -->
-  <section>
-    <div class="section-label">Sync Flow</div>
-    <div class="flow-container">
+    <div class="divider"></div>
 
-      <div class="slot-wrapper">
-        <div class="slot slot--empty slot--focused" id="slot-source">
-          <span class="slot-placeholder">?</span>
+    <!-- ── Sync Flow ──────────────────────────────────────────────────────── -->
+    <section>
+      <div class="section-label">Sync Flow</div>
+      <div class="flow-container">
+
+        <div class="slot-wrapper">
+          <div class="slot slot--empty slot--focused" id="slot-source">
+            <span class="slot-placeholder">?</span>
+          </div>
+          <span class="slot-label">Source</span>
         </div>
-        <span class="slot-label">Source</span>
-      </div>
 
-      <div class="flow-arrow">
-        <svg width="28" height="14" viewBox="0 0 28 14" fill="none">
-          <path d="M1 7h22M17 1l6 6-6 6" stroke="currentColor" stroke-width="1.6"
-                stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-
-      <div class="slot-wrapper">
-        <div class="slot slot--empty" id="slot-dest">
-          <span class="slot-placeholder">?</span>
+        <div class="flow-arrow">
+          <svg width="28" height="14" viewBox="0 0 28 14" fill="none">
+            <path d="M1 7h22M17 1l6 6-6 6" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <span class="slot-label">Destination</span>
+
+        <div class="slot-wrapper">
+          <div class="slot slot--empty" id="slot-dest">
+            <span class="slot-placeholder">?</span>
+          </div>
+          <span class="slot-label">Destination</span>
+        </div>
+
       </div>
+    </section>
 
+    <!-- ── Progress Bar ───────────────────────────────────────────────────── -->
+    <div id="progress-bar">
+      <div class="progress-track"><div id="progress-fill"></div></div>
+      <div id="progress-label"></div>
     </div>
-  </section>
 
-  <!-- ── Progress Bar ─────────────────────────────────────────────────────── -->
-  <div id="progress-bar">
-    <div class="progress-track"><div id="progress-fill"></div></div>
-    <div id="progress-label"></div>
-  </div>
-
-  <!-- ── Action Buttons ───────────────────────────────────────────────────── -->
-  <div class="actions">
-    <button class="action-btn" id="btn-sync" disabled>⚡ Sync Context</button>
-  </div>
-
-  <!-- ── Footer ───────────────────────────────────────────────────────────── -->
-  <footer>
-    <div id="status"></div>
-    <div class="footer-actions">
-      <button class="footer-btn" id="btn-refresh">↺ Refresh</button>
-      <a class="options-link" href="../options/options.html" target="_blank">⚙ Options</a>
+    <!-- ── Action Buttons ─────────────────────────────────────────────────── -->
+    <div class="actions">
+      <button class="action-btn" id="btn-sync" disabled title="Sync context as text messages">Sync Context</button>
+      <button class="action-btn btn--locked" id="btn-file" disabled title="Upload full conversation as a file — Premium feature">File Sync</button>
     </div>
-  </footer>
+    <div id="cooldown-notice"></div>
+
+    <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+    <footer>
+      <div id="status"></div>
+      <div class="footer-actions">
+        <button class="footer-btn" id="btn-refresh">Refresh</button>
+        <a class="options-link" href="../options/options.html" target="_blank">Options</a>
+      </div>
+    </footer>
+
+  </div><!-- #view-main -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- UPGRADE VIEW                                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-upgrade">
+
+    <button class="upgrade-back" id="btn-back">Back to sync</button>
+
+    <div class="upgrade-hero">
+      <div class="upgrade-title">Go Premium</div>
+      <div class="upgrade-sub">Sync AI conversations without limits</div>
+    </div>
+
+    <div class="upgrade-price">
+      <div class="upgrade-price-amount">$9.99<span style="font-size:13px;font-weight:500;color:var(--text-3)">/month</span></div>
+      <div class="upgrade-price-note">Cancel anytime · No data stored</div>
+    </div>
+
+    <ul class="upgrade-features">
+      <li><span class="feat-star">+</span> Instant file-based sync — no size limits</li>
+      <li><span class="feat-check">–</span> Full conversation export between AIs</li>
+      <li><span class="feat-check">–</span> ChatGPT, Claude, Gemini &amp; Copilot</li>
+      <li><span class="feat-check">–</span> Works 100% in your browser</li>
+    </ul>
+
+    <div class="upgrade-form">
+      <input class="upgrade-input" id="upgrade-email" type="email" placeholder="your@email.com" autocomplete="email" />
+      <button class="upgrade-cta" id="btn-subscribe">Subscribe with PayPal →</button>
+    </div>
+
+    <div class="upgrade-sep">Already have a key?</div>
+
+    <div class="upgrade-form">
+      <input class="upgrade-input" id="upgrade-key" type="text" placeholder="UAIS-XXXXXXXX-XXXXXXXX" autocomplete="off" spellcheck="false" />
+      <button class="upgrade-cta" id="btn-activate-key" style="background:var(--elevated);border:1px solid var(--border);color:var(--text-2);">Activate License Key</button>
+      <div class="upgrade-key-status" id="key-status"></div>
+    </div>
+
+  </div><!-- #view-upgrade -->
 
   <script src="./popup.js"></script>
 </body>

@@ -1,5 +1,10 @@
 // @ts-check
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'
+
+// TODO: Replace with your final pricing/checkout URL once the backend is deployed
+const UPGRADE_URL = `${BACKEND_URL}/checkout.html`
+
 /**
  * @typedef {{
  *   id: number,
@@ -34,6 +39,12 @@ const PLATFORM_DOMAINS = {
   copilot: 'copilot.microsoft.com',
 }
 
+const COOLDOWN_MS = 5 * 60 * 60 * 1000 // 5 hours
+/** @type {number|null} */
+let cooldownIntervalId = null
+/** @type {number|null} */
+let cooldownUnlockId   = null
+
 // ── App State ──────────────────────────────────────────────────────────────────
 const app = {
   /** @type {AiTab[]} */
@@ -53,14 +64,37 @@ const app = {
    * @type {'source'|'dest'}
    */
   focus: 'source',
+
+  /** @type {'free'|'premium'} */
+  plan: 'free',
+
+  /** @type {string|null} */
+  email: null,
+
+  /** True when no active cooldown — free users get 1 use per 5 h, premium is always true. */
+  fileSyncReady: true,
+
+  /** True while a file-sync request is in flight; cleared on done/error to trigger cooldown save. */
+  pendingFileSync: false,
 }
 
 // ── DOM refs ───────────────────────────────────────────────────────────────────
-const tabListEl  = /** @type {HTMLElement} */ (document.getElementById('tab-list'))
-const slotSrcEl  = /** @type {HTMLElement} */ (document.getElementById('slot-source'))
-const slotDstEl  = /** @type {HTMLElement} */ (document.getElementById('slot-dest'))
-const btnSync    = /** @type {HTMLButtonElement} */ (document.getElementById('btn-sync'))
-const statusEl   = /** @type {HTMLElement} */ (document.getElementById('status'))
+const tabListEl    = /** @type {HTMLElement} */ (document.getElementById('tab-list'))
+const slotSrcEl    = /** @type {HTMLElement} */ (document.getElementById('slot-source'))
+const slotDstEl    = /** @type {HTMLElement} */ (document.getElementById('slot-dest'))
+const btnSync      = /** @type {HTMLButtonElement} */ (document.getElementById('btn-sync'))
+const btnFile      = /** @type {HTMLButtonElement} */ (document.getElementById('btn-file'))
+const statusEl     = /** @type {HTMLElement} */ (document.getElementById('status'))
+const headerBadge      = /** @type {HTMLElement} */ (document.getElementById('header-badge'))
+const viewMain         = /** @type {HTMLElement} */ (document.getElementById('view-main'))
+const viewUpgrade      = /** @type {HTMLElement} */ (document.getElementById('view-upgrade'))
+const btnBack          = /** @type {HTMLButtonElement} */ (document.getElementById('btn-back'))
+const btnSubscribe     = /** @type {HTMLButtonElement} */ (document.getElementById('btn-subscribe'))
+const btnActivate      = /** @type {HTMLButtonElement} */ (document.getElementById('btn-activate-key'))
+const upgradeEmail     = /** @type {HTMLInputElement} */ (document.getElementById('upgrade-email'))
+const upgradeKey       = /** @type {HTMLInputElement} */ (document.getElementById('upgrade-key'))
+const keyStatus        = /** @type {HTMLElement} */ (document.getElementById('key-status'))
+const btnUpgradeFooter = /** @type {HTMLButtonElement} */ (document.getElementById('btn-upgrade-footer'))
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -77,18 +111,184 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-refresh')?.addEventListener('click', refresh)
   btnSync?.addEventListener('click', handleSync)
 
-  // Restore in-progress transfer that survived a popup close
-  const stored = await chrome.storage.session.get('transferStatus')
+  btnFile?.addEventListener('click', () => {
+    // Button is disabled during cooldown, so this only fires when the user is allowed to sync
+    handleFileSync()
+  })
+
+  // Both upgrade entry points open the same upgrade view
+  btnUpgradeFooter?.addEventListener('click', showUpgradeView)
+  btnBack?.addEventListener('click', showMainView)
+
+  btnSubscribe?.addEventListener('click', () => {
+    const email = upgradeEmail.value.trim()
+    if (!email || !email.includes('@')) {
+      upgradeEmail.focus()
+      upgradeEmail.style.borderColor = 'var(--red)'
+      setTimeout(() => { upgradeEmail.style.borderColor = '' }, 1500)
+      return
+    }
+    const url = `${BACKEND_URL}/checkout.html?email=${encodeURIComponent(email)}`
+    chrome.tabs.create({ url })
+    window.close()
+  })
+
+  btnActivate?.addEventListener('click', activateLicenseKey)
+  upgradeKey?.addEventListener('keydown', (e) => { if (e.key === 'Enter') activateLicenseKey() })
+
+  // Load session state AND cooldown state in parallel — prevents button/notice flash
+  // while checkLicense() resolves asynchronously in the background.
+  const [stored, localStored] = await Promise.all([
+    chrome.storage.session.get(['transferStatus', 'fileSyncInProgress']),
+    chrome.storage.local.get('lastFileSyncAt'),
+  ])
+  // If cooldown is still active, start it immediately — renders the timer and CTA
+  // before any async work (license check, refresh) so there is zero visible delay.
+  const _availableAt = (localStored.lastFileSyncAt ?? 0) + COOLDOWN_MS
+  if (Date.now() < _availableAt) startCooldown(_availableAt)
+  // If a file sync completed while the popup was closed, save the cooldown timestamp now
+  // so initFileSyncCooldown (called later via checkLicense → applyPlan) picks it up.
+  if (stored.fileSyncInProgress && /** @type {any} */ (stored.transferStatus)?.phase === 'done') {
+    await chrome.storage.local.set({ lastFileSyncAt: Date.now() })
+    await chrome.storage.session.remove('fileSyncInProgress')
+  } else if (stored.fileSyncInProgress) {
+    app.pendingFileSync = true
+  }
   const ts = /** @type {any} */ (stored.transferStatus)
   if (ts?.phase && ts?.message && typeof ts?.pct === 'number') applyProgress(ts)
 
   // Live progress pushed by the background SW while the popup is open
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'TRANSFER_PROGRESS') applyProgress(msg)
+    if (msg.type !== 'TRANSFER_PROGRESS') return
+    applyProgress(msg)
+    if (msg.phase === 'done' && app.pendingFileSync) {
+      app.pendingFileSync = false
+      chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
+      if (app.plan === 'free') {
+        const now = Date.now()
+        chrome.storage.local.set({ lastFileSyncAt: now }).catch(() => {})
+        startCooldown(now + COOLDOWN_MS)
+      }
+    } else if (msg.phase === 'error' && app.pendingFileSync) {
+      app.pendingFileSync = false
+      chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
+    }
   })
 
+  // Check license in background — don't block UI load
+  checkLicense()
   await refresh()
 })
+
+// ── License & Plan ─────────────────────────────────────────────────────────────
+
+async function checkLicense() {
+  try {
+    const stored = await chrome.storage.local.get('licenseKey')
+    if (!stored.licenseKey) return applyPlan('free', null)
+
+    const res = await fetch(`${BACKEND_URL}/api/license/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: stored.licenseKey }),
+    })
+    const data = await res.json()
+    if (data.valid && data.status === 'active') {
+      applyPlan('premium', data.email ?? null)
+    } else {
+      applyPlan('free', null)
+    }
+  } catch {
+    // Backend unreachable — don't block, assume free silently
+    applyPlan('free', null)
+  }
+}
+
+/**
+ * @param {'free'|'premium'} plan
+ * @param {string|null} email
+ */
+function applyPlan(plan, email) {
+  app.plan  = plan
+  app.email = email
+
+  if (plan === 'premium') {
+    headerBadge.textContent  = 'Pro'
+    headerBadge.className    = 'header-badge header-badge--premium'
+    headerBadge.title        = email ? `Premium · ${email}` : 'Premium plan'
+    btnFile.textContent      = 'Sync via File'
+    btnFile.classList.remove('btn--locked')
+    btnFile.title            = 'Upload full conversation as a file — instant, no size limits'
+    btnUpgradeFooter.classList.remove('visible')
+    endCooldown() // Premium has no cooldown; also clears any notice pre-rendered before plan resolved
+  } else {
+    headerBadge.textContent = 'Free'
+    headerBadge.className   = 'header-badge header-badge--free'
+    headerBadge.title       = 'Free plan — click to upgrade'
+    btnFile.textContent     = 'File Sync'
+    btnFile.title           = '1 free use every 5 hours — upgrade for unlimited'
+    btnUpgradeFooter.classList.add('visible')
+    clearCooldownTimers()
+    initFileSyncCooldown() // Checks storage and starts countdown if still in cooldown
+  }
+  updateButtons()
+}
+
+// ── View switching ─────────────────────────────────────────────────────────────
+
+function showUpgradeView() {
+  viewMain.style.display    = 'none'
+  viewUpgrade.classList.add('visible')
+  upgradeEmail.focus()
+}
+
+function showMainView() {
+  viewUpgrade.classList.remove('visible')
+  viewMain.style.display = ''
+  keyStatus.textContent  = ''
+  upgradeKey.value       = ''
+}
+
+// ── Inline license key activation ─────────────────────────────────────────────
+
+async function activateLicenseKey() {
+  const key = upgradeKey.value.trim().toUpperCase()
+  if (!key) { upgradeKey.focus(); return }
+
+  btnActivate.disabled    = true
+  keyStatus.textContent   = 'Validating…'
+  keyStatus.style.color   = 'var(--text-3)'
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/license/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    })
+    const data = await res.json()
+
+    if (data.valid && data.status === 'active') {
+      await chrome.storage.local.set({ licenseKey: key })
+      keyStatus.textContent = 'Activated — switching to Premium...'
+      keyStatus.style.color = 'var(--green)'
+      setTimeout(() => {
+        applyPlan('premium', data.email ?? null)
+        showMainView()
+      }, 1200)
+    } else {
+      const msg = data.status === 'suspended' ? 'Payment failed — check your PayPal'
+               : data.status === 'cancelled'  ? 'Subscription cancelled'
+               : 'Invalid key — check and try again'
+      keyStatus.textContent = `✗ ${msg}`
+      keyStatus.style.color = 'var(--red)'
+      btnActivate.disabled  = false
+    }
+  } catch {
+    keyStatus.textContent = 'Could not reach server'
+    keyStatus.style.color = 'var(--red)'
+    btnActivate.disabled  = false
+  }
+}
 
 // ── Selection persistence ──────────────────────────────────────────────────────
 
@@ -276,6 +476,20 @@ function renderSlot(el, tab, slotName) {
 function updateButtons() {
   const both = app.source !== null && app.dest !== null
   btnSync.disabled = !both
+
+  if (!btnFile) return
+  if (app.plan === 'premium') {
+    btnFile.classList.remove('btn--locked')
+    btnFile.disabled = !both
+  } else if (!app.fileSyncReady) {
+    // Free plan — cooldown active: disable the button
+    btnFile.classList.add('btn--locked')
+    btnFile.disabled = true
+  } else {
+    // Free plan — ready for 1 free use
+    btnFile.classList.remove('btn--locked')
+    btnFile.disabled = !both
+  }
 }
 
 // ── State Machine ──────────────────────────────────────────────────────────────
@@ -318,18 +532,96 @@ function setFocus(slotName) {
   // render() is called by the caller — no double render here
 }
 
-// ── Sync Action ────────────────────────────────────────────────────────────────
+// ── File Sync Cooldown (5 hours, premium only) ─────────────────────────────────
+
+async function initFileSyncCooldown() {
+  const stored = await chrome.storage.local.get('lastFileSyncAt')
+  const lastSync = stored.lastFileSyncAt ?? 0
+  const availableAt = lastSync + COOLDOWN_MS
+
+  if (Date.now() >= availableAt) {
+    app.fileSyncReady = true
+    updateButtons()
+  } else {
+    startCooldown(availableAt)
+  }
+}
+
+/** @param {number} availableAtMs */
+function startCooldown(availableAtMs) {
+  app.fileSyncReady = false
+  updateButtons()
+
+  // Build the notice HTML once — timer span is updated every second by tick()
+  const cooldownEl = document.getElementById('cooldown-notice')
+  if (cooldownEl) {
+    cooldownEl.innerHTML =
+      '<span id="cooldown-timer"></span>' +
+      (app.plan !== 'premium'
+        ? ' &middot; Don\'t want to wait? <button class="cooldown-upgrade" id="cooldown-upgrade-btn">Upgrade Now</button>'
+        : '')
+    document.getElementById('cooldown-upgrade-btn')?.addEventListener('click', () => {
+      showUpgradeView()
+    })
+  }
+
+  const tick = () => {
+    const remaining = availableAtMs - Date.now()
+    if (remaining <= 0) { endCooldown(); return }
+    const timerEl = document.getElementById('cooldown-timer')
+    if (!timerEl) return
+    const totalSecs = Math.ceil(remaining / 1000)
+    const hh = Math.floor(totalSecs / 3600).toString().padStart(2, '0')
+    const mm = Math.floor((totalSecs % 3600) / 60).toString().padStart(2, '0')
+    const ss = (totalSecs % 60).toString().padStart(2, '0')
+    timerEl.textContent = `Next file sync in ${hh}:${mm}:${ss}`
+  }
+
+  clearCooldownTimers()
+  tick()
+  cooldownIntervalId = window.setInterval(tick, 1000)
+  cooldownUnlockId   = window.setTimeout(endCooldown, availableAtMs - Date.now())
+}
+
+function endCooldown() {
+  clearCooldownTimers()
+  app.fileSyncReady = true
+  const cooldownEl = document.getElementById('cooldown-notice')
+  if (cooldownEl) cooldownEl.innerHTML = ''
+  updateButtons()
+}
+
+function clearCooldownTimers() {
+  if (cooldownIntervalId !== null) { clearInterval(cooldownIntervalId); cooldownIntervalId = null }
+  if (cooldownUnlockId   !== null) { clearTimeout(cooldownUnlockId);   cooldownUnlockId   = null }
+}
+
+// ── Sync Actions ───────────────────────────────────────────────────────────────
 
 function handleSync() {
   if (!app.source || !app.dest) return
-  // Hand off to the background SW — it runs independently so the sync
-  // survives if the user closes the popup or switches tabs.
   applyProgress({ phase: 'summarizing', message: 'Starting context sync…', pct: 5 })
   chrome.runtime.sendMessage({
     type:        'SYNC_CONTEXT',
     sourceTabId: app.source.id,
     destTabId:   app.dest.id,
   }).catch((err) => {
+    applyProgress({ phase: 'error', message: 'Error: ' + String(err), pct: 0 })
+  })
+}
+
+function handleFileSync() {
+  if (!app.source || !app.dest) return
+  app.pendingFileSync = true
+  chrome.storage.session.set({ fileSyncInProgress: true }).catch(() => {})
+  applyProgress({ phase: 'building', message: 'Building context file…', pct: 5 })
+  chrome.runtime.sendMessage({
+    type:        'SYNC_CONTEXT_FILE',
+    sourceTabId: app.source.id,
+    destTabId:   app.dest.id,
+  }).catch((err) => {
+    app.pendingFileSync = false
+    chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
     applyProgress({ phase: 'error', message: 'Error: ' + String(err), pct: 0 })
   })
 }

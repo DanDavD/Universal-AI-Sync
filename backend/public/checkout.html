@@ -103,10 +103,16 @@
   </div>
 
   <script>
-    // Show the price from the server-rendered env var if injected,
-    // otherwise keep the default.
     const form = document.getElementById('subscribe-form')
     const btn  = document.getElementById('submit-btn')
+
+    // Pre-fill email if passed from the extension popup
+    const emailParam = new URLSearchParams(location.search).get('email')
+    if (emailParam) {
+      const emailInput = form.querySelector('input[type="email"]')
+      if (emailInput) emailInput.value = emailParam
+    }
+
     form.addEventListener('submit', () => {
       btn.disabled = true
       btn.textContent = 'Redirecting to PayPal…'

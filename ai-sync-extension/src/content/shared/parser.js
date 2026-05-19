@@ -175,6 +175,49 @@ export function wrapChunk(chunk, part, total, isLast) {
 }
 
 // ---------------------------------------------------------------------------
+// Markdown file builder — used by the file-upload sync path
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds a complete Markdown document from a conversation for file-upload transfer.
+ * No size limit — the full conversation is always included.
+ *
+ * @param {ConvMsg[]} conversation
+ * @param {string} [sourcePlatform]
+ * @returns {string}
+ */
+export function buildMarkdownFile(conversation, sourcePlatform = 'AI') {
+  const date = new Date().toISOString().slice(0, 10)
+  const header = [
+    '# Conversation Context — Universal AI Sync',
+    '',
+    `> **Source:** ${sourcePlatform}`,
+    `> **Exported:** ${date}`,
+    `> **Messages:** ${conversation.length}`,
+    '',
+    '---',
+    '',
+    '**Instructions:** This file contains a full conversation exported from another AI session.',
+    'Read and internalize the entire conversation as shared context.',
+    'When the user sends their next message, respond as if you have been part of this conversation from the start.',
+    '',
+    '---',
+    '',
+  ].join('\n')
+
+  const body = conversation
+    .map((m) => {
+      const label = m.role === 'user' ? '## Human' : '## Assistant'
+      const text = stripNoise(m.text)
+      return text ? `${label}\n\n${text}` : null
+    })
+    .filter(/** @param {string|null} l */ (l) => l !== null)
+    .join('\n\n---\n\n')
+
+  return header + body + '\n'
+}
+
+// ---------------------------------------------------------------------------
 // Local sync prompt — built entirely in the background, no source-AI injection
 // ---------------------------------------------------------------------------
 

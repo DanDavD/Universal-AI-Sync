@@ -21,6 +21,31 @@ export async function injectText(text, sel, opts = {}) {
 }
 
 /**
+ * Attaches a markdown file to the chat input and sends a brief context prompt.
+ * Fast path for long conversations — no chunking, no size limits.
+ *
+ * @param {string} markdownContent
+ * @param {string} sourcePlatform
+ * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
+ */
+export async function injectFile(markdownContent, sourcePlatform, sel) {
+  const fileInput = /** @type {HTMLInputElement|null} */ (queryFirst(sel.fileInput))
+  if (!fileInput) throw new Error('[claude] No file input found. File upload may not be available on this page.')
+
+  const file = new File([markdownContent], `context-from-${sourcePlatform}.md`, { type: 'text/plain' })
+  const dt = new DataTransfer()
+  dt.items.add(file)
+  fileInput.files = dt.files
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }))
+  fileInput.dispatchEvent(new InputEvent('input', { bubbles: true }))
+
+  await sleep(2500)
+
+  const prompt = `I've attached our full conversation history from ${sourcePlatform}. Please read the context file and briefly acknowledge the main topics so we can continue from where we left off.`
+  await injectText(prompt, sel, { autoSubmit: true })
+}
+
+/**
  * @param {string} summary
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
  */

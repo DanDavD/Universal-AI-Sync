@@ -19,6 +19,7 @@ export const DEFAULT_SELECTORS = {
     input:              '#prompt-textarea, [contenteditable="true"][id="prompt-textarea"], div[contenteditable="true"][data-testid="prompt-textarea"]',
     submitBtn:          '[data-testid="send-button"], button[aria-label="Send message"], button[aria-label="Send prompt"]',
     stopBtn:            'button[data-testid="stop-button"], button[aria-label="Stop streaming"], button[aria-label="Stop generating"]',
+    fileInput:          'input[type="file"]',
   },
   claude: {
     chatContainer:      '[data-testid="conversation-content"], .flex-1, main',
@@ -28,6 +29,7 @@ export const DEFAULT_SELECTORS = {
     input:              '.ProseMirror[contenteditable="true"], [contenteditable="true"].ProseMirror, div[contenteditable="true"][class*="ProseMirror"]',
     submitBtn:          'button[aria-label="Send message"], button[aria-label="Send Message"], [data-testid="send-message-button"], button[type="submit"]',
     stopBtn:            'button[aria-label="Stop Response"], button[aria-label="Stop"], button[data-testid="stop-button"]',
+    fileInput:          'input[type="file"]',
   },
   gemini: {
     chatContainer:      'chat-history, infinite-scroller, .conversation-container',
@@ -37,6 +39,7 @@ export const DEFAULT_SELECTORS = {
     input:              '.ql-editor[contenteditable="true"], rich-textarea .ql-editor, div[contenteditable="true"][class*="ql-editor"]',
     submitBtn:          'button.send-button, button[aria-label*="Send"], button[aria-label*="send"], .send-button',
     stopBtn:            'button[aria-label="Stop response"], button[aria-label*="Stop"], .stop-button',
+    fileInput:          'input[type="file"]',
   },
   copilot: {
     chatContainer:      'main, [role="main"], .conversation-container, .chat-container',
@@ -46,6 +49,7 @@ export const DEFAULT_SELECTORS = {
     input:              'div[contenteditable="true"][role="textbox"], textarea[placeholder], #userInput, div[contenteditable="true"]',
     submitBtn:          'button[aria-label*="Submit"], button[aria-label*="Send"], button[aria-label*="send"], button[type="submit"]',
     stopBtn:            'button[aria-label*="Stop"], button[aria-label*="stop"]',
+    fileInput:          'input[type="file"]',
   },
 }
 
@@ -58,6 +62,7 @@ export const DEFAULT_SELECTORS = {
  *   input: string,
  *   submitBtn: string,
  *   stopBtn: string,
+ *   fileInput: string,
  * }} PlatformSelectors
  */
 

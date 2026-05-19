@@ -3,7 +3,7 @@ import { loadSelectors } from '../shared/selectorConfig.js'
 import { createOverlay } from '../shared/overlay.js'
 import { waitForDomQuiet } from '../shared/observer.js'
 import { scrapeConversation } from './scraper.js'
-import { injectSync } from './injector.js'
+import { injectSync, injectFile } from './injector.js'
 
 const PLATFORM = 'gemini'
 
@@ -41,6 +41,16 @@ function handleBackgroundMessage(msg, _sender, sendResponse) {
           .then(() => {
             chrome.runtime.sendMessage({ type: 'SYNC_DONE' }).catch(() => {})
             overlay.setStatus('Context synced successfully')
+          })
+          .catch(() => {})
+      } else if (msg.type === 'INJECT_FILE') {
+        await injectFile(msg.markdownContent, msg.sourcePlatform, sel)
+        sendResponse({ ok: true })
+        overlay.setStatus('File uploaded — waiting for AI…')
+        waitForDomQuiet(2000, 90000)
+          .then(() => {
+            chrome.runtime.sendMessage({ type: 'SYNC_DONE' }).catch(() => {})
+            overlay.setStatus('Context synced via file!')
           })
           .catch(() => {})
       } else if (msg.type === 'SCRAPE_CONVERSATION') {

@@ -80,6 +80,7 @@ async function dispatch(msg, sender) {
     case 'SET_MIRROR_PAIR':    return setMirrorPair(msg)
     case 'REMOVE_MIRROR_PAIR': return removeMirrorPair(msg)
     case 'SYNC_CONTEXT':       return syncContext(msg)
+    case 'SYNC_CONTEXT_FILE':  return syncContextFile(msg)
     case 'SYNC_DONE':          return syncDone()
     case 'MIRROR_MESSAGE':     return mirrorMessage(msg, sender)
     case 'GET_STATE':          return getState()
@@ -207,6 +208,52 @@ async function syncContext(msg) {
   }
 }
 
+/**
+ * File-upload sync — scrapes the full conversation (no budget trim), builds a
+ * Markdown document in the SW, then sends it to the destination as a File object.
+ * One action, no chunking, no size limit.
+ */
+async function syncContextFile(msg) {
+  const { sourceTabId, destTabId } = msg
+
+  try {
+    await setProgress('scraping', 'Reading source conversation…', 20)
+    const scraped = await chrome.tabs.sendMessage(sourceTabId, { type: 'SCRAPE_CONVERSATION' })
+
+    if (!scraped?.ok || !scraped.conversation?.length) {
+      await setProgress('error', 'Nothing scraped from source tab', 0)
+      return { error: 'Nothing scraped' }
+    }
+
+    const sourcePlatform = tabRegistry.get(sourceTabId) ?? 'AI'
+    const msgCount = scraped.conversation.length
+
+    await setProgress('building', `Building context file (${msgCount} messages)…`, 50)
+    const markdownContent = buildMarkdownFileLocal(scraped.conversation, sourcePlatform)
+
+    await setProgress('uploading', 'Uploading file to destination…', 75)
+    const injectResult = await chrome.tabs.sendMessage(destTabId, {
+      type: 'INJECT_FILE',
+      markdownContent,
+      sourcePlatform,
+    })
+
+    if (injectResult?.ok) {
+      await setProgress('syncing', 'File delivered — waiting for AI…', 90)
+      return { ok: true }
+    }
+
+    const errMsg = injectResult?.error ?? 'File upload failed'
+    await setProgress('error', errMsg, 0)
+    return { error: errMsg }
+
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    await setProgress('error', errMsg, 0)
+    return { error: errMsg }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Platform content budgets — max chars of raw conversation to sync.
 // Keeps part count sensible regardless of conversation length.
@@ -286,6 +333,45 @@ function buildLocalSyncPrompt(conversation) {
     '',
     'Please confirm you have received this context by briefly acknowledging the main topics covered.',
   ].join('\n')
+}
+
+/**
+ * Builds a Markdown document from a full conversation — inlined so the SW
+ * bundle stays self-contained (mirrors buildMarkdownFile in parser.js).
+ *
+ * @param {ConvMsg[]} conversation
+ * @param {string} sourcePlatform
+ * @returns {string}
+ */
+function buildMarkdownFileLocal(conversation, sourcePlatform) {
+  const date = new Date().toISOString().slice(0, 10)
+  const header = [
+    '# Conversation Context — Universal AI Sync',
+    '',
+    `> **Source:** ${sourcePlatform}`,
+    `> **Exported:** ${date}`,
+    `> **Messages:** ${conversation.length}`,
+    '',
+    '---',
+    '',
+    '**Instructions:** This file contains a full conversation exported from another AI session.',
+    'Read and internalize the entire conversation as shared context.',
+    'When the user sends their next message, respond as if you have been part of this conversation from the start.',
+    '',
+    '---',
+    '',
+  ].join('\n')
+
+  const body = conversation
+    .map((m) => {
+      const label = m.role === 'user' ? '## Human' : '## Assistant'
+      const text = swStripNoise(m.text)
+      return text ? `${label}\n\n${text}` : null
+    })
+    .filter((l) => l !== null)
+    .join('\n\n---\n\n')
+
+  return header + body + '\n'
 }
 
 /** @param {number} ms */
