@@ -47,11 +47,9 @@ function handleBackgroundMessage(msg, _sender, sendResponse) {
           })
           .catch(() => {})
       } else if (msg.type === 'INJECT_FILE') {
-        overlay.lock('Sending context file…')
+        overlay.lock('Attaching context file…')
         try {
-          await injectFile(msg.markdownContent, msg.sourcePlatform, sel, (part, total) => {
-            overlay.lock(`Sending file part ${part} of ${total}…`)
-          })
+          await injectFile(msg.markdownContent, msg.sourcePlatform, sel)
         } finally {
           overlay.unlock()
         }

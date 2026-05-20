@@ -101,9 +101,9 @@ const PANEL_CSS = /* css */`
 /** @param {Event} e */
 function _stopScroll(e) { e.preventDefault(); e.stopPropagation() }
 
-const SCROLL_KEYS = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End',' '])
+/** Block all real user keyboard input; let programmatic dispatchEvent through (isTrusted=false) */
 /** @param {KeyboardEvent} e */
-function _stopScrollKeys(e) { if (SCROLL_KEYS.has(e.key)) { e.preventDefault(); e.stopPropagation() } }
+function _stopAllKeys(e) { if (e.isTrusted) { e.preventDefault(); e.stopPropagation() } }
 
 /**
  * @typedef {{
@@ -176,7 +176,8 @@ export function createOverlay(callbacks) {
       document.body.style.overflow = 'hidden'
       document.addEventListener('wheel', _stopScroll, { passive: false, capture: true })
       document.addEventListener('touchmove', _stopScroll, { passive: false, capture: true })
-      document.addEventListener('keydown', _stopScrollKeys, { capture: true })
+      document.addEventListener('keydown', _stopAllKeys, { capture: true })
+      document.addEventListener('keypress', _stopAllKeys, { capture: true })
     }
     panel.classList.add('syncing')
     syncDot.classList.add('syncing')
@@ -194,7 +195,8 @@ export function createOverlay(callbacks) {
     document.body.style.overflow = ''
     document.removeEventListener('wheel', _stopScroll, { capture: true })
     document.removeEventListener('touchmove', _stopScroll, { capture: true })
-    document.removeEventListener('keydown', _stopScrollKeys, { capture: true })
+    document.removeEventListener('keydown', _stopAllKeys, { capture: true })
+    document.removeEventListener('keypress', _stopAllKeys, { capture: true })
     panel.classList.remove('syncing')
     syncDot.classList.remove('syncing')
     statusLine.classList.remove('active')

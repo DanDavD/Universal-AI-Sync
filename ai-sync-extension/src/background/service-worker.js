@@ -172,18 +172,10 @@ async function syncContext(msg) {
       return { error: 'Nothing scraped' }
     }
 
-    // Trim to platform budget so the chunk count stays manageable
-    const destPlatform = tabRegistry.get(destTabId) ?? 'chatgpt'
-    const budget = PLATFORM_BUDGETS[destPlatform] ?? 60000
-    const conversation = trimToBudget(scraped.conversation, budget)
-    const trimNote = conversation.length < scraped.conversation.length
-      ? ` (last ${conversation.length} of ${scraped.conversation.length} messages)`
-      : ` (${conversation.length} messages)`
+    // Build the clean prompt from the full conversation — no trimming, chunks handle size
+    const summary = buildLocalSyncPrompt(scraped.conversation)
 
-    // Build the clean prompt locally — strip noise per message, format both roles
-    const summary = buildLocalSyncPrompt(conversation)
-
-    await setProgress('syncing', `Syncing${trimNote}…`, 75)
+    await setProgress('syncing', `Syncing (${scraped.conversation.length} messages)…`, 75)
     const injectResult = await chrome.tabs.sendMessage(destTabId, {
       type: 'INJECT_SYNC',
       summary,

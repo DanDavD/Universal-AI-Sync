@@ -44,7 +44,7 @@ export const DEFAULT_SELECTORS = {
   copilot: {
     chatContainer:      'main, [role="main"], .conversation-container, .chat-container',
     userMessages:       '[data-testid="user-message"], .user-message, [class*="UserMessage"], [class*="user-message"], .HumanMessage, [class*="HumanMessage"]',
-    assistantMessages:  '[data-testid="bot-message"], [data-testid="copilot-message"], .bot-message, [class*="BotMessage"], [class*="bot-message"], .CopilotMessage, [class*="CopilotMessage"]',
+    assistantMessages:  '[data-testid="bot-message"], [data-testid="copilot-message"], [data-testid="assistant-message"], [data-testid="ai-message"], [data-testid*="response"], .bot-message, [class*="BotMessage"], [class*="bot-message"], .CopilotMessage, [class*="CopilotMessage"], [class*="AssistantMessage"], [class*="assistant-message"], [class*="AiMessage"], [class*="ai-message"], [class*="ResponseMessage"], [class*="response-message"], [class*="CopilotTurn"], [class*="copilot-turn"]',
     messageText:        'p, li, code',
     input:              'div[contenteditable="true"][role="textbox"], textarea[placeholder], #userInput, div[contenteditable="true"]',
     submitBtn:          'button[aria-label*="Submit"], button[aria-label*="Send"], button[aria-label*="send"], button[type="submit"]',

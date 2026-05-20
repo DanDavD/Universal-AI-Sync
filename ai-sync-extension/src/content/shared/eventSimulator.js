@@ -240,21 +240,42 @@ export async function revealFileInput(extraBtnSelector = '') {
 
     const timer = setTimeout(() => done(null), 4000)
 
-    const baseSel = 'button[aria-label="Attach files"],button[aria-label="Attach file"],button[aria-label="Add attachment"],button[data-testid="attach-button"]'
+    const baseSel = [
+      'button[aria-label="Attach files"]',
+      'button[aria-label="Attach file"]',
+      'button[aria-label="Add attachment"]',
+      'button[data-testid="attach-button"]',
+      'button[aria-label*="Upload" i]',
+      'button[aria-label*="Add image" i]',
+      'button[aria-label*="Add file" i]',
+      'button[aria-label*="attach" i]',
+      'button[aria-label*="More" i]',
+    ].join(',')
     const btnSel  = extraBtnSelector ? `${extraBtnSelector},${baseSel}` : baseSel
     const btn     = /** @type {HTMLElement|null} */ (document.querySelector(btnSel))
     if (!btn) { done(null); return }
     btn.click()
 
-    // ChatGPT shows a "+" menu — click the Upload/file item once it renders
-    setTimeout(() => {
+    // Some platforms (ChatGPT, Gemini) show a submenu — poll until the upload item appears
+    let pollCount = 0
+    const tryClickUpload = () => {
       if (settled) return
-      const items = Array.from(document.querySelectorAll('[role="menuitem"],[role="option"]'))
+      pollCount++
+      if (pollCount > 20) return // give up after ~4s of polling
+
+      const items = Array.from(document.querySelectorAll(
+        '[role="menuitem"],[role="option"],li,[role="listitem"],.mat-menu-item,[mat-menu-item]'
+      ))
       const upload = /** @type {HTMLElement|undefined} */ (
-        items.find((el) => /upload|file/i.test(el.textContent ?? ''))
+        items.find((el) => /upload\s*files?|upload/i.test(el.textContent ?? ''))
       )
-      upload?.click()
-    }, 400)
+      if (upload) {
+        upload.click()
+      } else {
+        setTimeout(tryClickUpload, 200)
+      }
+    }
+    setTimeout(tryClickUpload, 400)
   })
 }
 
