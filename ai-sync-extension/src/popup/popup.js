@@ -40,6 +40,8 @@ const PLATFORM_DOMAINS = {
 }
 
 const COOLDOWN_MS = 5 * 60 * 60 * 1000 // 5 hours
+/** TODO: set to false to re-enable the 5-hour cooldown for production */
+const FILE_SYNC_UNLIMITED = true
 /** @type {number|null} */
 let cooldownIntervalId = null
 /** @type {number|null} */
@@ -145,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // If cooldown is still active, start it immediately — renders the timer and CTA
   // before any async work (license check, refresh) so there is zero visible delay.
   const _availableAt = (localStored.lastFileSyncAt ?? 0) + COOLDOWN_MS
-  if (Date.now() < _availableAt) startCooldown(_availableAt)
+  if (!FILE_SYNC_UNLIMITED && Date.now() < _availableAt) startCooldown(_availableAt)
   // If a file sync completed while the popup was closed, save the cooldown timestamp now
   // so initFileSyncCooldown (called later via checkLicense → applyPlan) picks it up.
   if (stored.fileSyncInProgress && /** @type {any} */ (stored.transferStatus)?.phase === 'done') {
@@ -164,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (msg.phase === 'done' && app.pendingFileSync) {
       app.pendingFileSync = false
       chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
-      if (app.plan === 'free') {
+      if (!FILE_SYNC_UNLIMITED && app.plan === 'free') {
         const now = Date.now()
         chrome.storage.local.set({ lastFileSyncAt: now }).catch(() => {})
         startCooldown(now + COOLDOWN_MS)
@@ -538,6 +540,7 @@ function setFocus(slotName) {
 // ── File Sync Cooldown (5 hours, premium only) ─────────────────────────────────
 
 async function initFileSyncCooldown() {
+  if (FILE_SYNC_UNLIMITED) { app.fileSyncReady = true; updateButtons(); return }
   const stored = await chrome.storage.local.get('lastFileSyncAt')
   const lastSync = stored.lastFileSyncAt ?? 0
   const availableAt = lastSync + COOLDOWN_MS
