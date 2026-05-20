@@ -21,29 +21,27 @@ export async function injectText(text, sel, opts = {}) {
 }
 
 /**
- * Attaches a markdown file to the chat input and sends a brief context prompt.
- * Fast path for long conversations — no chunking, no size limits.
+ * Injects the full markdown conversation as text, chunked if needed.
+ * ChatGPT does not support programmatic file attachment via synthetic events.
  *
  * @param {string} markdownContent
- * @param {string} sourcePlatform
+ * @param {string} _sourcePlatform
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
+ * @param {((part: number, total: number) => void) | null} [onProgress]
  */
-export async function injectFile(markdownContent, sourcePlatform, sel) {
-  const fileInput = /** @type {HTMLInputElement|null} */ (queryFirst(sel.fileInput))
-  if (!fileInput) throw new Error('[chatgpt] No file input found. File upload may not be available on this page.')
-
-  const file = new File([markdownContent], `context-from-${sourcePlatform}.md`, { type: 'text/plain' })
-  const dt = new DataTransfer()
-  dt.items.add(file)
-  fileInput.files = dt.files
-  fileInput.dispatchEvent(new Event('change', { bubbles: true }))
-  fileInput.dispatchEvent(new InputEvent('input', { bubbles: true }))
-
-  // Wait for the platform to register and display the file attachment
-  await sleep(2500)
-
-  const prompt = `I've attached our full conversation history from ${sourcePlatform}. Please read the context file and briefly acknowledge the main topics so we can continue from where we left off.`
-  await injectText(prompt, sel, { autoSubmit: true })
+export async function injectFile(markdownContent, _sourcePlatform, sel, onProgress = null) {
+  const chunks = splitIntoChunks(markdownContent, CHUNK_SIZE)
+  for (let i = 0; i < chunks.length; i++) {
+    const isLast = i === chunks.length - 1
+    onProgress?.(i + 1, chunks.length)
+    await injectText(wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel, { autoSubmit: true })
+    for (let t = 0; t < 20; t++) {
+      const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
+      if (stop) { clickElement(stop); break }
+      await sleep(150)
+    }
+    if (!isLast) await sleep(CHUNK_DELAY)
+  }
 }
 
 /**

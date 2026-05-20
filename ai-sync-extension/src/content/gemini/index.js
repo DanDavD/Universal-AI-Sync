@@ -51,7 +51,14 @@ function handleBackgroundMessage(msg, _sender, sendResponse) {
           })
           .catch(() => {})
       } else if (msg.type === 'INJECT_FILE') {
-        await injectFile(msg.markdownContent, msg.sourcePlatform, sel)
+        overlay.lock('Sending context file…')
+        try {
+          await injectFile(msg.markdownContent, msg.sourcePlatform, sel, (part, total) => {
+            overlay.lock(`Sending file part ${part} of ${total}…`)
+          })
+        } finally {
+          overlay.unlock()
+        }
         sendResponse({ ok: true })
         overlay.setStatus('File uploaded — waiting for AI…')
         waitForDomQuiet(2000, 90000)

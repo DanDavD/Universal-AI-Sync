@@ -202,6 +202,63 @@ export async function injectAndSubmit(inputEl, submitElOrFn, text, opts = {}) {
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
+ * Finds an existing `input[type="file"]` or reveals one by clicking the
+ * platform's attachment button, intercepting the `.click()` that would
+ * otherwise open the native file-picker dialog.
+ *
+ * @param {string} [extraBtnSelector]  Extra CSS selectors prepended when
+ *                                     searching for the attachment button.
+ * @returns {Promise<HTMLInputElement|null>}
+ */
+export async function revealFileInput(extraBtnSelector = '') {
+  const direct = /** @type {HTMLInputElement|null} */ (document.querySelector('input[type="file"]'))
+  if (direct) return direct
+
+  return new Promise((resolve) => {
+    let settled = false
+    /** @param {HTMLInputElement|null} input */
+    const done = (input) => {
+      if (settled) return
+      settled = true
+      observer.disconnect()
+      HTMLInputElement.prototype.click = origClick
+      clearTimeout(timer)
+      resolve(input)
+    }
+
+    const observer = new MutationObserver(() => {
+      const found = /** @type {HTMLInputElement|null} */ (document.querySelector('input[type="file"]'))
+      if (found) done(found)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    const origClick = HTMLInputElement.prototype.click
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === 'file') done(/** @type {HTMLInputElement} */ (this))
+      else origClick.call(this)
+    }
+
+    const timer = setTimeout(() => done(null), 4000)
+
+    const baseSel = 'button[aria-label="Attach files"],button[aria-label="Attach file"],button[aria-label="Add attachment"],button[data-testid="attach-button"]'
+    const btnSel  = extraBtnSelector ? `${extraBtnSelector},${baseSel}` : baseSel
+    const btn     = /** @type {HTMLElement|null} */ (document.querySelector(btnSel))
+    if (!btn) { done(null); return }
+    btn.click()
+
+    // ChatGPT shows a "+" menu — click the Upload/file item once it renders
+    setTimeout(() => {
+      if (settled) return
+      const items = Array.from(document.querySelectorAll('[role="menuitem"],[role="option"]'))
+      const upload = /** @type {HTMLElement|undefined} */ (
+        items.find((el) => /upload|file/i.test(el.textContent ?? ''))
+      )
+      upload?.click()
+    }, 400)
+  })
+}
+
+/**
  * Tries to read the platform's hard character limit directly from the input
  * element. Works for <textarea maxlength="N"> (some Copilot builds).
  * Returns null when the limit isn't exposed in the DOM.
