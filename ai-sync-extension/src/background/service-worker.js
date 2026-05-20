@@ -262,10 +262,10 @@ async function syncContextFile(msg) {
 
 /** @type {Record<Platform, number>} */
 const PLATFORM_BUDGETS = {
-  chatgpt: 60000,  // ~5 parts @ 12k/chunk
-  claude:  80000,  // ~3 parts @ 25k/chunk
-  gemini:  48000,  // ~4 parts @ 12k/chunk
-  copilot: 35000,  // ~5 parts @ 6.5k/chunk
+  chatgpt: 100000,  // ~8 parts @ 12.5k/chunk
+  claude:  200000,  // ~8 parts @ 25k/chunk
+  gemini:  100000,  // ~8 parts @ 12.5k/chunk
+  copilot: 100000,  // ~8 parts @ 12.5k/chunk
 }
 
 /**

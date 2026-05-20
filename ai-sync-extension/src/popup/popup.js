@@ -216,7 +216,7 @@ function applyPlan(plan, email) {
     headerBadge.textContent  = 'Pro'
     headerBadge.className    = 'header-badge header-badge--premium'
     headerBadge.title        = email ? `Premium · ${email}` : 'Premium plan'
-    btnFile.textContent      = 'Sync via File'
+    btnFile.textContent      = 'File-Based Sync'
     btnFile.classList.remove('btn--locked')
     btnFile.title            = 'Upload full conversation as a file — instant, no size limits'
     btnUpgradeFooter.classList.remove('visible')
@@ -225,7 +225,7 @@ function applyPlan(plan, email) {
     headerBadge.textContent = 'Free'
     headerBadge.className   = 'header-badge header-badge--free'
     headerBadge.title       = 'Free plan — click to upgrade'
-    btnFile.textContent     = 'File Sync'
+    btnFile.textContent     = 'File-Based Sync'
     btnFile.title           = '1 free use every 5 hours — upgrade for unlimited'
     btnUpgradeFooter.classList.add('visible')
     clearCooldownTimers()
@@ -425,10 +425,13 @@ function renderTabList() {
 
   tabListEl.innerHTML = app.tabs.map((tab) => {
     const used    = usedIds.has(tab.id)
-    const usedTag = app.source?.id === tab.id ? 'Source'
-                  : app.dest?.id   === tab.id ? 'Dest'
-                  : ''
-    const label   = PLATFORM_LABELS[tab.platform] ?? tab.platform
+    const usedTag      = app.source?.id === tab.id ? 'Source'
+                       : app.dest?.id   === tab.id ? 'Dest'
+                       : ''
+    const usedTagClass = app.source?.id === tab.id ? 'tab-used-tag tab-used-tag--source'
+                       : app.dest?.id   === tab.id ? 'tab-used-tag tab-used-tag--dest'
+                       : ''
+    const label        = PLATFORM_LABELS[tab.platform] ?? tab.platform
 
     return `
       <div class="tab-item ${used ? 'tab-item--used' : ''}" data-id="${tab.id}">
@@ -437,7 +440,7 @@ function renderTabList() {
           <span class="tab-platform">${esc(label)}</span>
           <span class="tab-page-title">${esc(truncate(tab.title, 30))}</span>
         </div>
-        ${usedTag ? `<span class="tab-used-tag">${usedTag}</span>` : ''}
+        ${usedTag ? `<span class="${usedTagClass}">${usedTag}</span>` : ''}
       </div>`
   }).join('')
 
@@ -574,7 +577,7 @@ function startCooldown(availableAtMs) {
     const hh = Math.floor(totalSecs / 3600).toString().padStart(2, '0')
     const mm = Math.floor((totalSecs % 3600) / 60).toString().padStart(2, '0')
     const ss = (totalSecs % 60).toString().padStart(2, '0')
-    timerEl.textContent = `Next file sync in ${hh}:${mm}:${ss}`
+    timerEl.textContent = `Next file-based sync in ${hh}:${mm}:${ss}`
   }
 
   clearCooldownTimers()
@@ -639,7 +642,7 @@ function applyProgress({ phase, message, pct }) {
   fill.style.width    = pct + '%'
   fill.style.background = phase === 'error' ? '#ef4444'
                         : phase === 'done'  ? '#22c55e'
-                        : '#7c3aed'
+                        : 'linear-gradient(135deg, #4f8ef7, #7c3aed)'
   label.textContent = message
 
   if (phase === 'done') setTimeout(() => { bar.style.display = 'none' }, 4000)

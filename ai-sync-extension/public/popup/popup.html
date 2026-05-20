@@ -7,18 +7,19 @@
   <style>
     /* ── Design Tokens ─────────────────────────────────────────────────────── */
     :root {
-      --bg:            #09090b;
-      --surface:       #18181b;
-      --elevated:      #27272a;
-      --border:        #3f3f46;
-      --border-subtle: #27272a;
+      --bg:            #09090f;
+      --surface:       #111118;
+      --elevated:      #0c0c13;
+      --border:        rgba(255,255,255,0.07);
+      --border-subtle: rgba(255,255,255,0.05);
       --text:          #f4f4f5;
       --text-2:        #a1a1aa;
-      --text-3:        #71717a;
-      --blue:          #3b82f6;
-      --blue-dim:      rgba(59,130,246,0.18);
+      --text-3:        #52525b;
+      --blue:          #4f8ef7;
+      --blue-dim:      rgba(79,142,247,0.15);
       --green:         #22c55e;
       --purple:        #7c3aed;
+      --purple2:       #9333ea;
       --red:           #ef4444;
       --ease:          all 0.2s ease;
     }
@@ -85,7 +86,7 @@
     }
     #tab-list::-webkit-scrollbar { width: 3px; }
     #tab-list::-webkit-scrollbar-track { background: transparent; }
-    #tab-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    #tab-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
 
     .tab-item {
       display: flex;
@@ -100,7 +101,8 @@
     }
     .tab-item:hover:not(.tab-item--used) {
       background: var(--surface);
-      border-color: var(--border-subtle);
+      border-color: rgba(79,142,247,0.3);
+      box-shadow: 0 8px 32px rgba(79,142,247,0.08);
     }
     .tab-item--used {
       opacity: 0.38;
@@ -151,12 +153,12 @@
     .tab-used-tag {
       font-size: 9px;
       font-weight: 600;
-      color: var(--text-3);
-      background: var(--elevated);
-      padding: 1px 5px;
+      padding: 1px 6px;
       border-radius: 4px;
       flex-shrink: 0;
     }
+    .tab-used-tag--source { background: rgba(79,142,247,0.15);  color: #4f8ef7; }
+    .tab-used-tag--dest   { background: rgba(124,58,237,0.15); color: #c4b5fd; }
 
     .empty-msg {
       color: var(--text-3);
@@ -172,8 +174,8 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      background: var(--surface);
-      border: 1px solid var(--border-subtle);
+      background: var(--elevated);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 14px 18px;
     }
@@ -200,13 +202,13 @@
 
     /* Empty slot */
     .slot--empty {
-      border: 2px dashed var(--border);
-      background: var(--elevated);
+      border: 2px dashed rgba(255,255,255,0.15);
+      background: var(--surface);
       cursor: default;
     }
     .slot-placeholder {
       font-size: 20px;
-      color: var(--border);
+      color: rgba(255,255,255,0.2);
       line-height: 1;
     }
 
@@ -217,14 +219,14 @@
       animation: pulse-ring 1.8s ease-in-out infinite;
     }
     @keyframes pulse-ring {
-      0%, 100% { box-shadow: 0 0 0 0   rgba(59,130,246,0.45); }
-      50%       { box-shadow: 0 0 0 6px rgba(59,130,246,0);    }
+      0%, 100% { box-shadow: 0 0 0 0   rgba(79,142,247,0.45); }
+      50%       { box-shadow: 0 0 0 6px rgba(79,142,247,0);    }
     }
 
     /* Filled slot */
     .slot--filled {
       border: 2px solid var(--border);
-      background: var(--elevated);
+      background: var(--surface);
       cursor: pointer;
     }
     .slot--filled:hover { filter: brightness(1.15); }
@@ -232,6 +234,24 @@
     /* Filled + focused (ready to be replaced) */
     .slot--filled.slot--focused {
       animation: pulse-ring 1.8s ease-in-out infinite;
+    }
+
+    /* Source slot — gradient border replaces all border states */
+    #slot-source {
+      border: none !important;
+    }
+    #slot-source::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      padding: 2px;
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
     }
 
     .slot-logo {
@@ -268,10 +288,12 @@
     .slot-label {
       font-size: 9px;
       font-weight: 700;
-      color: var(--blue);
+      color: var(--text-3);
       text-transform: uppercase;
       letter-spacing: .06em;
     }
+    .slot-wrapper:first-child .slot-label { color: var(--blue); }
+    .slot-wrapper:last-child  .slot-label { color: #c4b5fd; }
 
     /* Arrow */
     .flow-arrow {
@@ -294,7 +316,7 @@
     #progress-fill {
       height: 100%;
       width: 0%;
-      background: var(--purple);
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
       border-radius: 2px;
       transition: width 350ms ease, background 200ms;
     }
@@ -323,17 +345,64 @@
     .action-btn:hover:not(:disabled) { background: var(--elevated); }
     .action-btn:disabled { opacity: 0.28; cursor: not-allowed; }
 
-    #btn-sync { border-color: var(--purple); color: #a78bfa; }
-    #btn-sync:disabled { border-color: var(--border); color: var(--text-2); }
+    /* Sync Context — gradient border (same style as File Sync) */
+    #btn-sync {
+      position: relative;
+      color: var(--text-2);
+      background: transparent;
+      border-color: transparent;
+      font-weight: 600;
+    }
+    #btn-sync::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      padding: 1px;
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    #btn-sync:hover:not(:disabled) { background: rgba(79,142,247,0.06); }
+    #btn-sync:hover:not(:disabled)::before { opacity: 1; }
+    #btn-sync:disabled { color: var(--text-3); }
+    #btn-sync:disabled::before { opacity: 0.2; }
 
-    #btn-file { border-color: var(--green); color: var(--green); }
-    #btn-file:disabled { border-color: var(--border); color: var(--text-2); }
-    #btn-file.btn--locked { border-color: var(--border); color: var(--text-3); opacity: 0.7; cursor: pointer; }
-    #btn-file.btn--locked:hover { background: var(--elevated); opacity: 1; }
+    /* File Sync — gradient border secondary */
+    #btn-file {
+      position: relative;
+      color: var(--text-2);
+      background: transparent;
+      border-color: transparent;
+    }
+    #btn-file::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      padding: 1px;
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    #btn-file:hover:not(:disabled) { background: rgba(79,142,247,0.06); }
+    #btn-file:hover:not(:disabled)::before { opacity: 1; }
+    #btn-file:disabled { color: var(--text-3); }
+    #btn-file:disabled::before { opacity: 0.2; }
+    #btn-file.btn--locked { color: var(--text-3); opacity: 0.7; cursor: pointer; }
+    #btn-file.btn--locked:hover { background: rgba(79,142,247,0.06); opacity: 1; }
 
     /* ── Plan badge variants ───────────────────────────────────────────────── */
-    .header-badge--free    { background: var(--elevated); color: var(--text-3); }
-    .header-badge--premium { background: var(--blue); color: #fff; }
+    .header-badge--free     { background: var(--elevated); color: var(--text-3); }
+    .header-badge--premium  { background: linear-gradient(135deg, #4f8ef7, #7c3aed); color: #fff; }
     .header-badge--checking { background: var(--elevated); color: var(--text-3); }
 
     /* ── Views ─────────────────────────────────────────────────────────────── */
@@ -374,8 +443,8 @@
 
     .upgrade-price {
       text-align: center;
-      background: var(--surface);
-      border: 1px solid var(--border-subtle);
+      background: var(--elevated);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 16px;
     }
@@ -426,15 +495,19 @@
       width: 100%;
       box-sizing: border-box;
       text-align: center;
-      background: var(--blue);
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
       color: #fff;
       font-size: 12px;
       font-weight: 600;
       padding: 10px;
       border-radius: 8px;
-      transition: background 120ms, transform 80ms;
+      transition: box-shadow 120ms, filter 120ms, transform 80ms;
+      box-shadow: 0 0 24px rgba(79,142,247,0.22), 0 0 48px rgba(124,58,237,0.14);
     }
-    .upgrade-cta:hover  { background: #1d4ed8; }
+    .upgrade-cta:hover  {
+      box-shadow: 0 0 40px rgba(79,142,247,0.45), 0 0 70px rgba(124,58,237,0.28);
+      filter: brightness(1.08);
+    }
     .upgrade-cta:active { transform: scale(.98); }
     .upgrade-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -471,7 +544,7 @@
       cursor: pointer;
       letter-spacing: .01em;
     }
-    .cooldown-upgrade:hover { text-decoration: underline; color: #60a5fa; }
+    .cooldown-upgrade:hover { text-decoration: underline; color: #7ab3fa; }
 
     /* ── Footer ────────────────────────────────────────────────────────────── */
     footer {
@@ -497,7 +570,7 @@
     }
     .footer-btn:hover { color: var(--text-2); background: var(--surface); }
 
-/* ── Header upgrade CTA (free users, sits left of the plan badge) ─────────── */
+    /* ── Header upgrade CTA ────────────────────────────────────────────────── */
     #btn-upgrade-footer {
       all: unset;
       display: none;
@@ -505,18 +578,21 @@
       align-items: center;
       font-size: 9px;
       font-weight: 700;
-      color: var(--blue);
-      padding: 2px 7px;
+      color: #fff;
+      padding: 2px 8px;
       border-radius: 99px;
-      border: 1px solid rgba(59,130,246,.45);
-      background: rgba(59,130,246,.12);
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      box-shadow: 0 0 14px rgba(79,142,247,0.3), 0 0 28px rgba(124,58,237,0.18);
       transition: var(--ease);
       letter-spacing: .04em;
       text-transform: uppercase;
       line-height: 1;
     }
     #btn-upgrade-footer.visible { display: flex; }
-    #btn-upgrade-footer:hover   { background: rgba(59,130,246,.22); color: #93c5fd; }
+    #btn-upgrade-footer:hover   {
+      box-shadow: 0 0 22px rgba(79,142,247,0.5), 0 0 44px rgba(124,58,237,0.32);
+      filter: brightness(1.1);
+    }
   </style>
 </head>
 <body>
@@ -525,7 +601,7 @@
   <header>
     <span class="header-title">Universal AI Sync</span>
     <div style="display:flex;align-items:center;gap:5px;">
-      <button id="btn-upgrade-footer" class="visible" title="Upgrade to Premium — unlock file sync and more">Upgrade</button>
+      <button id="btn-upgrade-footer" class="visible" title="Upgrade to Premium — unlock file-based sync and more">Upgrade</button>
       <span class="header-badge header-badge--free" id="header-badge">Free</span>
     </div>
   </header>
@@ -580,8 +656,8 @@
 
     <!-- ── Action Buttons ─────────────────────────────────────────────────── -->
     <div class="actions">
-      <button class="action-btn" id="btn-sync" disabled title="Sync context as text messages">Sync Context</button>
-      <button class="action-btn btn--locked" id="btn-file" disabled title="Upload full conversation as a file — Premium feature">File Sync</button>
+      <button class="action-btn" id="btn-sync" disabled title="Sync conversation as text messages">Text-Based Sync</button>
+      <button class="action-btn btn--locked" id="btn-file" disabled title="Upload full conversation as a file — Premium feature">File-Based Sync</button>
     </div>
     <div id="cooldown-notice"></div>
 

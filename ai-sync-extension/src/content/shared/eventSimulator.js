@@ -144,13 +144,18 @@ export function clickElement(btn) {
 /**
  * Full inject-and-optionally-submit sequence.
  *
+ * submitElOrFn can be an element or a zero-arg function that returns a fresh
+ * element reference — pass a function so retries re-query the DOM after the
+ * platform re-renders (e.g. ChatGPT swaps send↔stop buttons mid-generation).
+ *
  * @param {HTMLElement} inputEl
- * @param {HTMLElement|null} submitEl  Pass null to use simulateEnter instead.
+ * @param {HTMLElement|null|(() => HTMLElement|null)} submitElOrFn
  * @param {string} text
  * @param {{ autoSubmit?: boolean }} [opts]
  */
-export async function injectAndSubmit(inputEl, submitEl, text, opts = {}) {
+export async function injectAndSubmit(inputEl, submitElOrFn, text, opts = {}) {
   const { autoSubmit = false } = opts
+  const getBtn = typeof submitElOrFn === 'function' ? submitElOrFn : () => submitElOrFn
 
   inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
   inputEl.focus()
@@ -165,12 +170,31 @@ export async function injectAndSubmit(inputEl, submitEl, text, opts = {}) {
 
   await sleep(120)
 
-  if (autoSubmit) {
-    if (submitEl) {
-      clickElement(submitEl)
+  if (!autoSubmit) return
+
+  // Retry up to 3 times with a fresh button reference each attempt.
+  // ChatGPT hides the send button while generating — re-querying lets us wait
+  // until it reappears. Fall back to Enter on the final attempt.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      inputEl.focus()
+      await sleep(150)
+    }
+
+    const btn = getBtn()
+    if (btn?.isConnected) {
+      clickElement(btn)
     } else {
       simulateEnter(inputEl)
     }
+
+    await sleep(500)
+
+    const empty = inputEl.isContentEditable
+      ? !(inputEl.textContent ?? '').trim()
+      : !(/** @type {HTMLInputElement} */ (inputEl).value ?? '').trim()
+
+    if (empty) return
   }
 }
 

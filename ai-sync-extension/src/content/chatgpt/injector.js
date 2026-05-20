@@ -4,7 +4,7 @@ import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
 
-const CHUNK_SIZE  = 12000
+const CHUNK_SIZE  = 12500
 const CHUNK_DELAY = 1500
 
 /**
@@ -17,7 +17,7 @@ export async function injectText(text, sel, opts = {}) {
     queryFirst(sel.input) ?? await waitForElement(sel.input.split(',')[0].trim())
   )
   if (!input) throw new Error('[chatgpt] Input element not found')
-  await injectAndSubmit(input, queryFirst(sel.submitBtn), text, opts)
+  await injectAndSubmit(input, () => queryFirst(sel.submitBtn), text, opts)
 }
 
 /**
@@ -49,21 +49,20 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
 /**
  * @param {string} summary
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
+ * @param {((part: number, total: number) => void) | null} [onProgress]
  */
-export async function injectSync(summary, sel) {
+export async function injectSync(summary, sel, onProgress = null) {
   const chunks = splitIntoChunks(summary, CHUNK_SIZE)
   for (let i = 0; i < chunks.length; i++) {
     const isLast = i === chunks.length - 1
+    onProgress?.(i + 1, chunks.length)
     await injectText(wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel, { autoSubmit: true })
-    if (!isLast) {
-      await sleep(CHUNK_DELAY)
-    } else {
-      // Click stop immediately so AI absorbs context without generating a response
-      for (let t = 0; t < 20; t++) {
-        const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
-        if (stop) { clickElement(stop); break }
-        await sleep(150)
-      }
+    // Click stop after every chunk so the send button is always available for the next one
+    for (let t = 0; t < 20; t++) {
+      const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
+      if (stop) { clickElement(stop); break }
+      await sleep(150)
     }
+    if (!isLast) await sleep(CHUNK_DELAY)
   }
 }

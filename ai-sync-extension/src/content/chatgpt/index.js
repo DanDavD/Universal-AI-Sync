@@ -22,18 +22,24 @@ async function init() {
 }
 
 function handleSync() {
-  overlay.setStatus('Open popup to sync context')
+  overlay.setStatus('Open popup to start sync')
 }
 
 function handleBackgroundMessage(msg, _sender, sendResponse) {
   ;(async () => {
     try {
       if (msg.type === 'INJECT_SYNC') {
-        await injectSync(msg.summary, sel)
-        // Reply immediately — don't block on AI response
+        overlay.lock('Preparing sync…')
+        try {
+          await injectSync(msg.summary, sel, (part, total) => {
+            overlay.setStatus(`Sending part ${part} of ${total}…`)
+            overlay.lock(`Sending part ${part} of ${total}…`)
+          })
+        } finally {
+          overlay.unlock()
+        }
         sendResponse({ ok: true })
         overlay.setStatus('Context sent — waiting for AI…')
-        // Watch for page to go quiet (AI finished streaming), then notify SW
         waitForDomQuiet(2000, 90000)
           .then(() => {
             chrome.runtime.sendMessage({ type: 'SYNC_DONE' }).catch(() => {})

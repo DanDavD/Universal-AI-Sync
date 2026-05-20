@@ -19,16 +19,22 @@ const PANEL_CSS = /* css */`
   }
 
   .panel {
-    background: #18181b;
-    border: 1px solid #3f3f46;
+    background: #111118;
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.45);
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 148px;
+    min-width: 160px;
     user-select: none;
+    transition: box-shadow 200ms, border-color 200ms;
+  }
+
+  .panel.syncing {
+    border-color: #4f8ef7;
+    box-shadow: 0 0 0 1px #4f8ef7, 0 0 20px rgba(79,142,247,0.25), 0 8px 32px rgba(0,0,0,.45);
   }
 
   .panel-header {
@@ -38,7 +44,7 @@ const PANEL_CSS = /* css */`
     letter-spacing: .06em;
     text-transform: uppercase;
     padding-bottom: 4px;
-    border-bottom: 1px solid #27272a;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
   }
 
   button {
@@ -54,14 +60,13 @@ const PANEL_CSS = /* css */`
     color: #e4e4e7;
     transition: background 120ms;
   }
-  button:hover { background: #27272a; }
-  button:active { background: #3f3f46; }
+  button:hover { background: #1a1a24; }
+  button:active { background: #0c0c13; }
 
   button.active {
-    background: #1d4ed8;
+    background: linear-gradient(135deg, rgba(79,142,247,0.25), rgba(124,58,237,0.25));
     color: #fff;
   }
-  button.active:hover { background: #1e40af; }
 
   .dot {
     width: 6px;
@@ -69,15 +74,36 @@ const PANEL_CSS = /* css */`
     border-radius: 50%;
     background: #52525b;
     flex-shrink: 0;
+    transition: background 200ms;
   }
   .dot.live { background: #22c55e; }
+  .dot.syncing {
+    background: #4f8ef7;
+    animation: dot-pulse 1s ease-in-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
 
   .status {
     font-size: 10px;
-    color: #71717a;
+    color: #52525b;
     margin-top: 2px;
+    transition: color 200ms;
+  }
+  .status.active {
+    color: #4f8ef7;
+    font-weight: 600;
   }
 `
+
+/** @param {Event} e */
+function _stopScroll(e) { e.preventDefault(); e.stopPropagation() }
+
+const SCROLL_KEYS = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End',' '])
+/** @param {KeyboardEvent} e */
+function _stopScrollKeys(e) { if (SCROLL_KEYS.has(e.key)) { e.preventDefault(); e.stopPropagation() } }
 
 /**
  * @typedef {{
@@ -89,7 +115,7 @@ const PANEL_CSS = /* css */`
  * Creates and attaches the sync overlay panel to the page.
  *
  * @param {OverlayCallbacks} callbacks
- * @returns {{ setStatus(msg: string): void, remove(): void }}
+ * @returns {{ setStatus(msg: string): void, lock(msg: string): void, unlock(): void, remove(): void }}
  */
 export function createOverlay(callbacks) {
   const host = document.createElement('div')
@@ -105,24 +131,73 @@ export function createOverlay(callbacks) {
   panel.innerHTML = `
     <div class="panel-header">AI Sync</div>
     <button id="btn-sync">
-      <span class="dot"></span>Sync context
+      <span class="dot" id="sync-dot"></span>Sync
     </button>
     <div class="status" id="status-line"></div>
   `
   shadow.appendChild(panel)
 
-  const btnSync   = /** @type {HTMLButtonElement} */ (shadow.getElementById('btn-sync'))
+  const btnSync    = /** @type {HTMLButtonElement} */ (shadow.getElementById('btn-sync'))
   const statusLine = /** @type {HTMLElement} */ (shadow.getElementById('status-line'))
+  const syncDot    = /** @type {HTMLElement} */ (shadow.getElementById('sync-dot'))
+
+  /** @type {HTMLElement|null} */
+  let shieldEl = null
 
   btnSync.addEventListener('click', () => {
     callbacks.onSync()
-    setStatus('Open popup to sync context')
+    setStatus('Open popup to start sync')
   })
 
   /** @param {string} msg */
   function setStatus(msg) {
     statusLine.textContent = msg
     if (msg) setTimeout(() => { if (statusLine.textContent === msg) statusLine.textContent = '' }, 4000)
+  }
+
+  /**
+   * Locks the page during injection: blocks all clicks with a transparent shield
+   * and switches the overlay to a visible "syncing" state.
+   * @param {string} msg
+   */
+  function lock(msg) {
+    if (!shieldEl) {
+      shieldEl = document.createElement('div')
+      Object.assign(shieldEl.style, {
+        position: 'fixed',
+        inset: '0',
+        zIndex: '2147483646', // just below our overlay (2147483647)
+        pointerEvents: 'all',
+        cursor: 'not-allowed',
+      })
+      document.body.appendChild(shieldEl)
+      // Block all scroll: overflow, wheel, keyboard scroll keys, touch
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden'
+      document.addEventListener('wheel', _stopScroll, { passive: false, capture: true })
+      document.addEventListener('touchmove', _stopScroll, { passive: false, capture: true })
+      document.addEventListener('keydown', _stopScrollKeys, { capture: true })
+    }
+    panel.classList.add('syncing')
+    syncDot.classList.add('syncing')
+    statusLine.classList.add('active')
+    statusLine.textContent = msg || 'Sync in progress…'
+  }
+
+  /**
+   * Removes the click shield and resets the overlay to normal state.
+   */
+  function unlock() {
+    shieldEl?.remove()
+    shieldEl = null
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.removeEventListener('wheel', _stopScroll, { capture: true })
+    document.removeEventListener('touchmove', _stopScroll, { capture: true })
+    document.removeEventListener('keydown', _stopScrollKeys, { capture: true })
+    panel.classList.remove('syncing')
+    syncDot.classList.remove('syncing')
+    statusLine.classList.remove('active')
   }
 
   if (document.body) {
@@ -133,6 +208,8 @@ export function createOverlay(callbacks) {
 
   return {
     setStatus,
-    remove: () => host.remove(),
+    lock,
+    unlock,
+    remove: () => { unlock(); host.remove() },
   }
 }
