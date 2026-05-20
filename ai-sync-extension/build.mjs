@@ -38,7 +38,6 @@ const ENTRIES = [
   ['content',    'gemini.js',         'src/content/gemini/index.js'],
   ['content',    'copilot.js',        'src/content/copilot/index.js'],
   ['popup',      'popup.js',          'src/popup/popup.js'],
-  ['options',    'options.js',        'src/options/options.js'],
 ]
 
 for (const [outDir, outFile, entry] of ENTRIES) {
