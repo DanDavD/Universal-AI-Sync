@@ -22,9 +22,9 @@ export const DEFAULT_SELECTORS = {
     fileInput:          'input[type="file"]',
   },
   claude: {
-    chatContainer:      '[data-testid="conversation-content"], .flex-1, main',
-    userMessages:       '[data-testid="human-turn"], [data-testid="user-message"], .human-turn, [class*="humanTurn"], [class*="HumanTurn"], [class*="human_turn"]',
-    assistantMessages:  '[data-testid="ai-turn"], [data-testid="assistant-message"], .ai-turn, [class*="aiTurn"], [class*="AiTurn"], [class*="ai_turn"]',
+    chatContainer:      '[data-testid="conversation-content"], [class*="conversationContent"], [class*="ConversationContent"], main',
+    userMessages:       '[data-testid="human-turn"], [data-testid="user-turn"], [data-testid="user-message"], .human-turn, [class*="humanTurn"], [class*="HumanTurn"], [class*="human_turn"], [class*="UserTurn"], [class*="user-turn"]',
+    assistantMessages:  '[data-testid="ai-turn"], [data-testid="assistant-turn"], [data-testid="assistant-message"], [data-testid="claude-turn"], .ai-turn, [class*="aiTurn"], [class*="AiTurn"], [class*="ai_turn"], [class*="AssistantTurn"], [class*="assistant-turn"], [class*="ClaudeTurn"], [class*="claude-turn"]',
     messageText:        'p, li, code',
     input:              '.ProseMirror[contenteditable="true"], [contenteditable="true"].ProseMirror, div[contenteditable="true"][class*="ProseMirror"]',
     submitBtn:          'button[aria-label="Send message"], button[aria-label="Send Message"], [data-testid="send-message-button"], button[type="submit"]',
