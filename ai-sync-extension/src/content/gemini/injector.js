@@ -17,12 +17,11 @@ export async function injectText(text, sel, opts = {}) {
     queryFirst(sel.input) ?? await waitForElement(sel.input.split(',')[0].trim(), 8000)
   )
   if (!input) throw new Error('[gemini] Quill editor not found')
-  await injectAndSubmit(input, queryFirst(sel.submitBtn), text, opts)
+  await injectAndSubmit(input, /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn)), text, opts)
 }
 
 /**
  * Recursively queries through open Shadow DOM boundaries.
- *
  * @param {string} selector
  * @param {Document|Element|ShadowRoot} root
  * @returns {Element|null}
@@ -56,40 +55,109 @@ const ATTACH_BTN_SELECTORS = [
 ]
 
 /**
- * Returns a Promise that resolves to the file input element intercepted when
- * Gemini internally calls fileInput.click() after the attach button is pressed.
- * Uses a capture-phase listener + composedPath() to pierce shadow DOM retargeting.
+ * Finds the "Upload files" option in Gemini's attachment dropdown menu.
+ * Angular Material overlay menus render in the top-level document, so
+ * a regular querySelectorAll is sufficient here.
+ * @returns {HTMLElement|null}
+ */
+function findUploadMenuItem() {
+  const candidates = document.querySelectorAll(
+    '[role="menuitem"], [role="option"], li, [role="listitem"], .mat-menu-item, [mat-menu-item], ms-menu-item, button'
+  )
+  for (const el of candidates) {
+    const text = (el.textContent ?? '').trim().toLowerCase()
+    const ariaLabel = (el.getAttribute('aria-label') ?? '').toLowerCase()
+    if (
+      /^upload\s+files?$/.test(text) ||
+      /^upload\s+files?/.test(ariaLabel)
+    ) {
+      return /** @type {HTMLElement} */ (el)
+    }
+  }
+  return null
+}
+
+/**
+ * Clicks the attach button, waits for the "Upload files" submenu item
+ * (Gemini's new dropdown UI), clicks it, then returns the file input element
+ * via three parallel detection methods:
+ *   1. Monkey-patch HTMLInputElement.prototype.click — catches programmatic clicks
+ *   2. Capture-phase listener + composedPath() — catches shadow DOM click dispatches
+ *   3. MutationObserver — catches dynamically added file inputs
  *
  * @param {HTMLElement} attachBtn
  * @returns {Promise<HTMLInputElement|null>}
  */
-function interceptFileInputClick(attachBtn) {
+function openFileInputViaMenu(attachBtn) {
   return new Promise((resolve) => {
-    /** @param {Event} e */
-    const onCapture = (e) => {
-      // composedPath() returns the full path through open shadow roots,
-      // even when e.target is retargeted to the shadow host.
-      const path = /** @type {EventTarget[]} */ (e.composedPath())
-      const inp = /** @type {HTMLInputElement|undefined} */ (
-        path.find((t) => t instanceof HTMLInputElement && /** @type {HTMLInputElement} */(t).type === 'file')
-      )
-      if (inp) {
-        e.preventDefault()           // prevent native file-picker dialog
-        e.stopImmediatePropagation() // stop further propagation
-        document.removeEventListener('click', onCapture, true)
-        resolve(inp)
+    let settled = false
+    /** @type {MutationObserver|null} */
+    let observer = null
+
+    /** @param {HTMLInputElement|null} input */
+    const done = (input) => {
+      if (settled) return
+      settled = true
+      if (observer) observer.disconnect()
+      HTMLInputElement.prototype.click = origClick
+      document.removeEventListener('click', onCapture, true)
+      clearTimeout(timer)
+      resolve(input)
+    }
+
+    // Method 1: monkey-patch for programmatic fileInput.click() calls
+    const origClick = HTMLInputElement.prototype.click
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === 'file') {
+        done(/** @type {HTMLInputElement} */ (this))
+      } else {
+        origClick.call(this)
       }
     }
 
+    // Method 2: capture-phase listener using composedPath() for shadow DOM
+    /** @param {Event} e */
+    const onCapture = (e) => {
+      const path = /** @type {EventTarget[]} */ (e.composedPath())
+      const inp = /** @type {HTMLInputElement|undefined} */ (
+        path.find((t) => t instanceof HTMLInputElement && /** @type {HTMLInputElement} */ (t).type === 'file')
+      )
+      if (inp) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        done(inp)
+      }
+    }
     document.addEventListener('click', onCapture, true)
 
-    // Timeout: if no file-input click is intercepted within 5 s, give up
-    setTimeout(() => {
-      document.removeEventListener('click', onCapture, true)
-      resolve(null)
-    }, 5000)
+    // Method 3: MutationObserver for dynamically added inputs
+    observer = new MutationObserver(() => {
+      const found = /** @type {HTMLInputElement|null} */ (deepQuery('input[type="file"]'))
+      if (found) done(found)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
 
+    // Overall timeout
+    const timer = setTimeout(() => done(null), 8000)
+
+    // Step 1: click attach button (opens dropdown menu in new Gemini UI)
     attachBtn.click()
+
+    // Step 2: poll every 200ms for the "Upload files" menu item and click it
+    let pollCount = 0
+    const tryClickUpload = () => {
+      if (settled) return
+      pollCount++
+      if (pollCount > 30) return  // give up after ~6s of polling
+
+      const item = findUploadMenuItem()
+      if (item) {
+        clickElement(item)
+      } else {
+        setTimeout(tryClickUpload, 200)
+      }
+    }
+    setTimeout(tryClickUpload, 400)
   })
 }
 
@@ -99,11 +167,10 @@ function interceptFileInputClick(attachBtn) {
  * Phase 1 – deepQuery: works when Gemini pre-renders the file input inside
  *   an open Shadow DOM subtree (no button interaction needed).
  *
- * Phase 2 – click interception: if Phase 1 finds nothing, we locate the
- *   attach button (also via deepQuery), register a capture-phase listener on
- *   document that uses composedPath() to find the file input in Gemini's
- *   internal click dispatch, then preventDefault() to skip the dialog and
- *   inject the file programmatically.
+ * Phase 2 – menu + triple detection: locates the attach button via deepQuery,
+ *   clicks it to open Gemini's new dropdown menu, waits for the "Upload files"
+ *   item, clicks it, then detects the resulting file input via monkey-patching,
+ *   composedPath interception, or MutationObserver — whichever fires first.
  *
  * @param {string} markdownContent
  * @param {string} sourcePlatform
@@ -113,14 +180,14 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
   /** @type {HTMLInputElement|null} */
   let fileInput = null
 
-  // ── Phase 1: try shadow-DOM traversal without any button click ───────────
+  // Phase 1: try shadow-DOM traversal without any button click
   for (let i = 0; i < 20; i++) {
     fileInput = /** @type {HTMLInputElement|null} */ (deepQuery('input[type="file"]'))
     if (fileInput) break
     await sleep(150)
   }
 
-  // ── Phase 2: click attach button and intercept the resulting .click() ────
+  // Phase 2: click attach button → handle dropdown menu → detect file input
   if (!fileInput) {
     let attachBtn = /** @type {HTMLElement|null} */ (null)
     for (const s of ATTACH_BTN_SELECTORS) {
@@ -132,10 +199,10 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
       throw new Error('[gemini] No file input or attach button found. Make sure you are on the Gemini chat page.')
     }
 
-    fileInput = await interceptFileInputClick(attachBtn)
+    fileInput = await openFileInputViaMenu(attachBtn)
   }
 
-  if (!fileInput) throw new Error('[gemini] File input not found after clicking attach button.')
+  if (!fileInput) throw new Error('[gemini] No file input found. File upload may require Gemini Advanced.')
 
   const file = new File([markdownContent], `context-from-${sourcePlatform}.md`, { type: 'text/plain' })
   const dt = new DataTransfer()

@@ -25,7 +25,7 @@ router.post('/subscribe', async (req, res) => {
       cancelUrl:  `${base}/cancel.html`,
     })
 
-    db.createPending({ email, paypalSubscriptionId: subscriptionId })
+    await db.createPending({ email, paypalSubscriptionId: subscriptionId })
 
     // Redirect user to PayPal to approve the subscription
     res.redirect(approvalUrl)
@@ -47,14 +47,14 @@ router.get('/success', async (req, res) => {
     // Verify with PayPal that the subscription is actually active
     const sub = await paypal.getSubscription(subscriptionId)
 
-    const record = db.findByPaypalId(subscriptionId)
+    const record = await db.findByPaypalId(subscriptionId)
     if (!record) {
       console.error('[paypal] success: no DB record for', subscriptionId)
       return res.redirect('/cancel.html')
     }
 
     if (sub.status === 'ACTIVE' || sub.status === 'APPROVED') {
-      db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
+      await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
 
       // Send license key by email (best-effort — don't fail the page if it errors)
       sendLicenseEmail({ to: record.email, licenseKey: record.license_key })
@@ -93,25 +93,29 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   console.log(`[paypal] webhook: ${event.event_type} — ${subscriptionId}`)
 
-  switch (event.event_type) {
-    case 'BILLING.SUBSCRIPTION.ACTIVATED':
-      db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
-      break
+  try {
+    switch (event.event_type) {
+      case 'BILLING.SUBSCRIPTION.ACTIVATED':
+        await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
+        break
 
-    case 'BILLING.SUBSCRIPTION.CANCELLED':
-    case 'BILLING.SUBSCRIPTION.EXPIRED':
-      db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'cancelled' })
-      break
+      case 'BILLING.SUBSCRIPTION.CANCELLED':
+      case 'BILLING.SUBSCRIPTION.EXPIRED':
+        await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'cancelled' })
+        break
 
-    case 'BILLING.SUBSCRIPTION.SUSPENDED':
-      // Payment failed — suspend access until billing resumes
-      db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'suspended' })
-      break
+      case 'BILLING.SUBSCRIPTION.SUSPENDED':
+        // Payment failed — suspend access until billing resumes
+        await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'suspended' })
+        break
 
-    case 'PAYMENT.SALE.COMPLETED':
-      // Successful monthly payment — ensure status stays active
-      db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
-      break
+      case 'PAYMENT.SALE.COMPLETED':
+        // Successful monthly payment — ensure status stays active
+        await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
+        break
+    }
+  } catch (err) {
+    console.error('[paypal] webhook db error:', err.message)
   }
 
   res.status(200).end()
