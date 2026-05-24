@@ -27,7 +27,10 @@ router.post('/subscribe', async (req, res) => {
 
     await db.createPending({ email, paypalSubscriptionId: subscriptionId })
 
-    // Redirect user to PayPal to approve the subscription
+    // JSON clients (popup) get the URL; form-POST clients get a redirect
+    if (req.headers['content-type']?.includes('application/json')) {
+      return res.json({ approvalUrl })
+    }
     res.redirect(approvalUrl)
   } catch (err) {
     console.error('[paypal] subscribe error:', err.message)

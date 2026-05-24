@@ -26,7 +26,7 @@ async function main() {
 
   // 2. Create Plan
   // Adjust PRICE and NAME here before running if needed
-  const PRICE_USD = '9.99'
+  const PRICE_USD = '4.99'
   const PLAN_NAME = 'Universal AI Sync Monthly'
 
   console.log(`\nCreating plan ($${PRICE_USD}/month)...`)
