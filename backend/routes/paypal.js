@@ -33,7 +33,7 @@ router.post('/subscribe', async (req, res) => {
     }
     res.redirect(approvalUrl)
   } catch (err) {
-    console.error('[paypal] subscribe error:', err.message)
+    console.error('[paypal] subscribe error:', err.message, JSON.stringify(err.response?.data ?? {}))
     res.status(500).json({ error: 'Failed to create subscription' })
   }
 })

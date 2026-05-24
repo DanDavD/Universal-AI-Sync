@@ -11,7 +11,8 @@
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://copilot.microsoft.com/*"
+    "https://copilot.microsoft.com/*",
+    "https://universal-ai-sync-production.up.railway.app/*"
   ],
 
   "background": {
