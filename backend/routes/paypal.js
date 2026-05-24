@@ -84,6 +84,7 @@ router.get('/success', async (req, res) => {
 router.post('/confirm', async (req, res) => {
   const email          = (req.body?.email ?? '').trim().toLowerCase()
   const subscriptionId = req.body?.subscriptionId
+  const extId          = req.body?.extId ?? ''
 
   if (!email || !email.includes('@') || !subscriptionId) {
     return res.status(400).json({ error: 'Email and subscriptionId required' })
@@ -100,19 +101,21 @@ router.post('/confirm', async (req, res) => {
 
     if (!record) return res.status(500).json({ error: 'Failed to create subscription record' })
 
+    const extParam = extId ? `&ext=${encodeURIComponent(extId)}` : ''
+
     if (sub.status === 'ACTIVE' || sub.status === 'APPROVED') {
       await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
       sendLicenseEmail({ to: record.email, licenseKey: record.license_key })
         .catch((e) => console.error('[mailer] error:', e.message))
       return res.json({
         success: true,
-        redirectUrl: `/success.html?key=${encodeURIComponent(record.license_key)}&email=${encodeURIComponent(record.email)}`,
+        redirectUrl: `/success.html?key=${encodeURIComponent(record.license_key)}&email=${encodeURIComponent(record.email)}${extParam}`,
       })
     }
 
     res.json({
       success: true,
-      redirectUrl: `/success.html?pending=1&email=${encodeURIComponent(record.email)}`,
+      redirectUrl: `/success.html?pending=1&email=${encodeURIComponent(record.email)}${extParam}`,
     })
   } catch (err) {
     console.error('[paypal] confirm error:', err.message)

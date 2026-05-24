@@ -25,52 +25,74 @@
       width: 100%;
       text-align: center;
     }
-    .icon { font-size: 40px; margin-bottom: 16px; line-height: 1; }
+    .icon { margin-bottom: 20px; }
     h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .subtitle { color: #71717a; font-size: 14px; margin-bottom: 28px; }
+    .subtitle { color: #71717a; font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
 
     .key-box {
       background: #09090b;
-      border: 1px solid #3f3f46;
-      border-radius: 10px;
-      padding: 18px 20px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      border-radius: 12px;
+      padding: 20px;
       margin-bottom: 20px;
+      position: relative;
+      background: linear-gradient(#09090b, #09090b) padding-box,
+                  linear-gradient(135deg, #4f8ef7, #7c3aed) border-box;
     }
-    .key-label { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .key-label { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
     .key-value {
-      font-size: 22px;
+      font-size: 20px;
       font-family: 'SF Mono', 'Fira Code', monospace;
       letter-spacing: 3px;
       color: #f4f4f5;
       font-weight: 600;
+      word-break: break-all;
     }
-    button.copy-btn {
-      margin-top: 12px;
-      background: #27272a;
+    .copy-btn {
+      margin-top: 14px;
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
       border: none;
-      border-radius: 7px;
-      color: #a1a1aa;
+      border-radius: 8px;
+      color: #fff;
       font-size: 13px;
-      padding: 8px 16px;
+      font-weight: 600;
+      padding: 9px 20px;
       cursor: pointer;
-      transition: background 120ms, color 120ms;
+      transition: filter 120ms, transform 80ms;
+      box-shadow: 0 0 20px rgba(79,142,247,0.25), 0 0 40px rgba(124,58,237,0.15);
     }
-    button.copy-btn:hover { background: #3f3f46; color: #e4e4e7; }
+    .copy-btn:hover { filter: brightness(1.1); }
+    .copy-btn:active { transform: scale(.97); }
+
+    .auto-badge {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 8px;
+      color: #4ade80;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      margin-bottom: 20px;
+    }
+    .auto-badge.visible { display: flex; }
 
     .steps {
       text-align: left;
       margin-bottom: 24px;
+      background: #0f0f12;
+      border: 1px solid #27272a;
+      border-radius: 10px;
+      padding: 16px 18px;
     }
-    .steps p { font-size: 13px; font-weight: 600; color: #a1a1aa; margin-bottom: 10px; }
-    .steps ol { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
-    .steps li { font-size: 13px; color: #71717a; line-height: 1.5; }
-    .steps code {
-      background: #27272a;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-family: monospace;
-      color: #e4e4e7;
-    }
+    .steps p { font-size: 12px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .steps ol { padding-left: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .steps li { font-size: 13px; color: #a1a1aa; line-height: 1.5; }
+    .steps strong { color: #e4e4e7; }
 
     .note { color: #52525b; font-size: 12px; line-height: 1.5; }
 
@@ -89,60 +111,82 @@
 <body>
   <div class="card">
     <div class="icon" id="icon">
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="24" r="23" stroke="#22c55e" stroke-width="2" fill="rgba(34,197,94,0.1)"/>
-        <path d="M14 24l7 7 13-14" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+        <circle cx="26" cy="26" r="25" stroke="#22c55e" stroke-width="2" fill="rgba(34,197,94,0.08)"/>
+        <path d="M15 26l8 8 14-15" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
-    <h1 id="title">You're subscribed!</h1>
-    <p class="subtitle" id="subtitle">Your license key is ready.</p>
+    <h1 id="title">You're now Sync Pro!</h1>
+    <p class="subtitle" id="subtitle">Your subscription is active and your license key is ready.</p>
+
+    <div class="auto-badge" id="auto-badge">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      License key activated in your extension!
+    </div>
 
     <div id="key-section"></div>
-
-    <div class="steps" id="steps">
-      <p>How to activate:</p>
-      <ol>
-        <li>Open Chrome and click the <strong>Universal AI Sync</strong> extension icon</li>
-        <li>Click <code>⚙ Options</code> at the bottom of the popup</li>
-        <li>Paste your license key in the <strong>License Key</strong> field</li>
-        <li>Click <strong>Activate</strong> — done!</li>
-      </ol>
-    </div>
+    <div id="steps-section"></div>
 
     <p class="note" id="note">Your key was also sent to your email address.</p>
   </div>
 
   <script>
-    const params = new URLSearchParams(location.search)
+    const params  = new URLSearchParams(location.search)
     const key     = params.get('key')
     const email   = params.get('email')
     const pending = params.get('pending')
+    const ext     = params.get('ext')
 
     if (pending) {
-      document.getElementById('icon').innerHTML = '<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="23" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.1)"/><path d="M24 14v10l6 4" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      document.getElementById('icon').innerHTML = '<svg width="52" height="52" viewBox="0 0 52 52" fill="none"><circle cx="26" cy="26" r="25" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.08)"/><path d="M26 14v12l7 4" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       document.getElementById('title').textContent = 'Payment processing…'
-      document.getElementById('subtitle').textContent =
-        'PayPal is processing your subscription. Your license key will arrive by email shortly.'
-      document.getElementById('key-section').innerHTML = `
-        <div class="pending-box">
-          Your license key will be sent to <strong>${email ?? 'your email'}</strong> within a few minutes.
-        </div>
-      `
+      document.getElementById('subtitle').textContent = 'PayPal is confirming your subscription. Your license key will arrive by email shortly.'
+      document.getElementById('key-section').innerHTML = `<div class="pending-box">Your license key will be sent to <strong>${email ?? 'your email'}</strong> within a few minutes.</div>`
+      document.getElementById('note').style.display = 'none'
+      document.getElementById('steps-section').innerHTML = stepsHTML()
     } else if (key) {
       document.getElementById('key-section').innerHTML = `
         <div class="key-box">
           <div class="key-label">Your License Key</div>
-          <div class="key-value" id="key-display">${key}</div>
-          <button class="copy-btn" onclick="copyKey()">Copy key</button>
+          <div class="key-value">${key}</div>
+          <button class="copy-btn" id="copy-btn" onclick="copyKey()">Copy License Key</button>
+        </div>
+      `
+      document.getElementById('steps-section').innerHTML = stepsHTML()
+
+      // Try to auto-activate in the extension
+      if (ext && typeof chrome !== 'undefined' && chrome.runtime) {
+        try {
+          chrome.runtime.sendMessage(ext, { type: 'ACTIVATE_KEY', key }, (response) => {
+            if (chrome.runtime.lastError) return
+            if (response?.success) {
+              document.getElementById('auto-badge').classList.add('visible')
+              document.getElementById('steps-section').style.display = 'none'
+            }
+          })
+        } catch (_) { /* silently ignore — user can activate manually */ }
+      }
+    }
+
+    function stepsHTML() {
+      return `
+        <div class="steps">
+          <p>How to activate</p>
+          <ol>
+            <li>Click the <strong>Universal AI Sync</strong> extension icon in Chrome</li>
+            <li>Click the <strong>Upgrade</strong> button at the top of the popup</li>
+            <li>Scroll down to <strong>"Already have a key?"</strong> and paste your key</li>
+            <li>Click <strong>Activate License Key</strong> — done!</li>
+          </ol>
         </div>
       `
     }
 
     function copyKey() {
       navigator.clipboard.writeText(key).then(() => {
-        const btn = document.querySelector('.copy-btn')
-        btn.textContent = 'Copied!'
-        setTimeout(() => { btn.textContent = 'Copy key' }, 2000)
+        const btn = document.getElementById('copy-btn')
+        btn.textContent = '✓ Copied!'
+        setTimeout(() => { btn.textContent = 'Copy License Key' }, 2000)
       })
     }
   </script>

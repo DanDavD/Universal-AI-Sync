@@ -247,7 +247,10 @@
     const errorMsg   = document.getElementById('error-msg')
     const emailCheck = document.getElementById('email-check')
 
-    const emailParam = new URLSearchParams(location.search).get('email')
+    const params   = new URLSearchParams(location.search)
+    const emailParam = params.get('email')
+    const extId    = params.get('ext') ?? ''
+
     if (emailParam) {
       emailInput.value = emailParam
       checkEmailLive()
@@ -280,7 +283,7 @@
         const res = await fetch('/api/paypal/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, subscriptionId: data.subscriptionID }),
+          body: JSON.stringify({ email, subscriptionId: data.subscriptionID, extId }),
         })
         const result = await res.json()
         if (result.redirectUrl) window.location.href = result.redirectUrl

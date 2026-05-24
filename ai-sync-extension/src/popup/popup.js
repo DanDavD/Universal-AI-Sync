@@ -129,12 +129,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => { upgradeEmail.style.borderColor = '' }, 1500)
       return
     }
-    chrome.tabs.create({ url: `${BACKEND_URL}/checkout.html?email=${encodeURIComponent(email)}` })
+    chrome.tabs.create({ url: `${BACKEND_URL}/checkout.html?email=${encodeURIComponent(email)}&ext=${chrome.runtime.id}` })
     window.close()
   })
 
   btnActivate?.addEventListener('click', activateLicenseKey)
   upgradeKey?.addEventListener('keydown', (e) => { if (e.key === 'Enter') activateLicenseKey() })
+  upgradeKey?.addEventListener('input', () => {
+    btnActivate?.classList.toggle('upgrade-cta--muted', !upgradeKey.value.trim())
+  })
 
   // Load session state AND cooldown state in parallel — prevents button/notice flash
   // while checkLicense() resolves asynchronously in the background.

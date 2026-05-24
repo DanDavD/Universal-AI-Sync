@@ -47,6 +47,10 @@
     "default_title": "Universal AI Sync"
   },
 
+  "externally_connectable": {
+    "matches": ["https://universal-ai-sync-production.up.railway.app/*"]
+  },
+
   "web_accessible_resources": [
     {
       "resources": ["assets/*"],

@@ -478,14 +478,14 @@
       width: 100%;
       box-sizing: border-box;
       background: var(--elevated);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,0.14);
       border-radius: 8px;
       color: var(--text);
       font-size: 12px;
       padding: 8px 10px;
-      transition: border-color 120ms;
+      transition: border-color 120ms, box-shadow 120ms;
     }
-    .upgrade-input:focus { border-color: var(--blue); }
+    .upgrade-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(79,142,247,0.15); }
     .upgrade-input::placeholder { color: var(--text-3); }
 
     .upgrade-cta {
@@ -510,6 +510,13 @@
     }
     .upgrade-cta:active { transform: scale(.98); }
     .upgrade-cta:disabled { opacity: 0.5; cursor: not-allowed; }
+    .upgrade-cta--muted {
+      background: var(--elevated);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: var(--text-2);
+      box-shadow: none;
+    }
+    .upgrade-cta--muted:hover { box-shadow: none; filter: none; background: #1a1a24; }
 
     .upgrade-sep {
       display: flex;
@@ -576,10 +583,10 @@
       display: none;
       cursor: pointer;
       align-items: center;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
-      padding: 2px 8px;
+      padding: 5px 14px;
       border-radius: 99px;
       background: linear-gradient(135deg, #4f8ef7, #7c3aed);
       box-shadow: 0 0 14px rgba(79,142,247,0.3), 0 0 28px rgba(124,58,237,0.18);
@@ -679,7 +686,7 @@
     <button class="upgrade-back" id="btn-back">Back to sync</button>
 
     <div class="upgrade-hero">
-      <div class="upgrade-title">Go Premium</div>
+      <div class="upgrade-title">Go Sync Pro</div>
       <div class="upgrade-sub">Sync AI conversations without limits</div>
     </div>
 
@@ -696,20 +703,20 @@
     </ul>
 
     <div class="upgrade-form">
-      <div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text-2);margin-bottom:4px;display:flex;align-items:center;gap:5px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
         Email for your license key
       </div>
       <input class="upgrade-input" id="upgrade-email" type="email" placeholder="you@example.com" autocomplete="email" />
-      <div style="font-size:10px;color:var(--text-3);margin-top:-2px;padding-left:1px;">Your key will be sent here instantly after payment.</div>
-      <button class="upgrade-cta" id="btn-subscribe">Subscribe with PayPal →</button>
+      <div style="font-size:10px;color:var(--text-2);margin-top:-2px;padding-left:1px;">Your key will be sent here the moment payment is confirmed.</div>
+      <button class="upgrade-cta" id="btn-subscribe">See Plans &amp; Pricing →</button>
     </div>
 
     <div class="upgrade-sep">Already have a key?</div>
 
     <div class="upgrade-form">
       <input class="upgrade-input" id="upgrade-key" type="text" placeholder="UAIS-XXXXXXXX-XXXXXXXX" autocomplete="off" spellcheck="false" />
-      <button class="upgrade-cta" id="btn-activate-key" style="background:var(--elevated);border:1px solid var(--border);color:var(--text-2);">Activate License Key</button>
+      <button class="upgrade-cta upgrade-cta--muted" id="btn-activate-key">Activate License Key</button>
       <div class="upgrade-key-status" id="key-status"></div>
     </div>
 

@@ -425,6 +425,18 @@ function getState() {
 }
 
 // ---------------------------------------------------------------------------
+// External messages (from success.html on Railway after payment)
+// ---------------------------------------------------------------------------
+chrome.runtime.onMessageExternal.addListener((msg, _sender, sendResponse) => {
+  if (msg.type === 'ACTIVATE_KEY' && msg.key) {
+    chrome.storage.local.set({ licenseKey: msg.key })
+      .then(() => sendResponse({ success: true }))
+      .catch(() => sendResponse({ success: false }))
+    return true
+  }
+})
+
+// ---------------------------------------------------------------------------
 // Tab lifecycle cleanup
 // ---------------------------------------------------------------------------
 chrome.tabs.onRemoved.addListener(async (tabId) => {
