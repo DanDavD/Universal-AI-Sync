@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnUpgradeFooter?.addEventListener('click', showUpgradeView)
   btnBack?.addEventListener('click', showMainView)
 
-  btnSubscribe?.addEventListener('click', async () => {
+  btnSubscribe?.addEventListener('click', () => {
     const email = upgradeEmail.value.trim()
     if (!email || !email.includes('@')) {
       upgradeEmail.focus()
@@ -129,30 +129,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => { upgradeEmail.style.borderColor = '' }, 1500)
       return
     }
-    btnSubscribe.disabled = true
-    btnSubscribe.textContent = 'Redirecting to PayPal…'
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/paypal/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json()
-      if (data.approvalUrl) {
-        chrome.tabs.create({ url: data.approvalUrl })
-        window.close()
-      } else {
-        throw new Error(data.error || 'No approval URL returned')
-      }
-    } catch (err) {
-      btnSubscribe.textContent = 'Error — try again'
-      btnSubscribe.style.background = 'var(--red)'
-      setTimeout(() => {
-        btnSubscribe.disabled = false
-        btnSubscribe.textContent = 'Subscribe with PayPal →'
-        btnSubscribe.style.background = ''
-      }, 3000)
-    }
+    chrome.tabs.create({ url: `${BACKEND_URL}/checkout.html?email=${encodeURIComponent(email)}` })
+    window.close()
   })
 
   btnActivate?.addEventListener('click', activateLicenseKey)

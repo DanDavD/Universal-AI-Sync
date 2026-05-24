@@ -77,6 +77,50 @@ router.get('/success', async (req, res) => {
 })
 
 // ---------------------------------------------------------------------------
+// POST /api/paypal/confirm
+// Body: { email, subscriptionId }
+// Called by checkout.html after the user approves the PayPal subscription.
+// ---------------------------------------------------------------------------
+router.post('/confirm', async (req, res) => {
+  const email          = (req.body?.email ?? '').trim().toLowerCase()
+  const subscriptionId = req.body?.subscriptionId
+
+  if (!email || !email.includes('@') || !subscriptionId) {
+    return res.status(400).json({ error: 'Email and subscriptionId required' })
+  }
+
+  try {
+    const sub = await paypal.getSubscription(subscriptionId)
+
+    let record = await db.findByPaypalId(subscriptionId)
+    if (!record) {
+      await db.createPending({ email, paypalSubscriptionId: subscriptionId })
+      record = await db.findByPaypalId(subscriptionId)
+    }
+
+    if (!record) return res.status(500).json({ error: 'Failed to create subscription record' })
+
+    if (sub.status === 'ACTIVE' || sub.status === 'APPROVED') {
+      await db.updateStatus({ paypalSubscriptionId: subscriptionId, status: 'active' })
+      sendLicenseEmail({ to: record.email, licenseKey: record.license_key })
+        .catch((e) => console.error('[mailer] error:', e.message))
+      return res.json({
+        success: true,
+        redirectUrl: `/success.html?key=${encodeURIComponent(record.license_key)}&email=${encodeURIComponent(record.email)}`,
+      })
+    }
+
+    res.json({
+      success: true,
+      redirectUrl: `/success.html?pending=1&email=${encodeURIComponent(record.email)}`,
+    })
+  } catch (err) {
+    console.error('[paypal] confirm error:', err.message)
+    res.status(500).json({ error: 'Failed to confirm subscription' })
+  }
+})
+
+// ---------------------------------------------------------------------------
 // POST /api/paypal/webhook
 // PayPal sends billing events here. Requires raw body for signature verification.
 // ---------------------------------------------------------------------------

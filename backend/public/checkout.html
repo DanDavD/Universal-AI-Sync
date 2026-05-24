@@ -90,33 +90,57 @@
       <li>Works entirely in your browser — no data stored</li>
     </ul>
 
-    <form id="subscribe-form" method="POST" action="/api/paypal/subscribe">
-      <input type="email" name="email" placeholder="Your email address" required />
-      <button type="submit" id="submit-btn">Subscribe with PayPal →</button>
-      <p class="error" id="error-msg"></p>
-    </form>
+    <input type="email" id="email-input" placeholder="Your email address" required />
+    <p class="error" id="error-msg"></p>
+    <div id="paypal-button-container" style="margin-top:4px"></div>
 
     <p class="note">
-      You'll be redirected to PayPal to complete payment.<br>
+      Pay with PayPal or any credit/debit card — no PayPal account required.<br>
       Your license key will be emailed to you instantly after subscribing.
     </p>
   </div>
 
+  <script src="https://www.paypal.com/sdk/js?client-id=AVenZ_fvXP9kwaOfowSrgq5MdymrWtQrczywA6DCdVxCZHfn94W7O4IoL3f_YGu8HO1Z01MIZNA3dSFa&vault=true&intent=subscription" data-sdk-integration-source="button-factory"></script>
   <script>
-    const form = document.getElementById('subscribe-form')
-    const btn  = document.getElementById('submit-btn')
+    const emailInput = document.getElementById('email-input')
+    const errorMsg   = document.getElementById('error-msg')
 
-    // Pre-fill email if passed from the extension popup
     const emailParam = new URLSearchParams(location.search).get('email')
-    if (emailParam) {
-      const emailInput = form.querySelector('input[type="email"]')
-      if (emailInput) emailInput.value = emailParam
-    }
+    if (emailParam) emailInput.value = emailParam
 
-    form.addEventListener('submit', () => {
-      btn.disabled = true
-      btn.textContent = 'Redirecting to PayPal…'
-    })
+    paypal.Buttons({
+      style: { shape: 'rect', color: 'blue', layout: 'vertical', label: 'subscribe' },
+
+      createSubscription: function(data, actions) {
+        const email = emailInput.value.trim()
+        if (!email || !email.includes('@')) {
+          errorMsg.textContent = 'Please enter a valid email address first.'
+          errorMsg.style.display = 'block'
+          emailInput.focus()
+          return Promise.reject(new Error('Email required'))
+        }
+        errorMsg.style.display = 'none'
+        return actions.subscription.create({ plan_id: 'P-5DR802526M8121442NIJTWLA' })
+      },
+
+      onApprove: async function(data) {
+        const email = emailInput.value.trim()
+        try {
+          const res = await fetch('/api/paypal/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, subscriptionId: data.subscriptionID }),
+          })
+          const result = await res.json()
+          if (result.redirectUrl) window.location.href = result.redirectUrl
+        } catch {
+          errorMsg.textContent = 'Payment received but activation failed — please contact support.'
+          errorMsg.style.display = 'block'
+        }
+      },
+
+      onError: function(err) { console.error('[paypal]', err) }
+    }).render('#paypal-button-container')
   </script>
 </body>
 </html>
