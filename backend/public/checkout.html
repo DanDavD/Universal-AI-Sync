@@ -18,18 +18,7 @@
     }
     .wrapper { max-width: 800px; width: 100%; text-align: center; }
     h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
-    .subtitle { color: #71717a; font-size: 15px; margin-bottom: 28px; line-height: 1.5; }
-
-    .features {
-      list-style: none;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px 28px;
-      margin-bottom: 32px;
-    }
-    .features li { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #a1a1aa; }
-    .features li::before { content: '✓'; color: #22c55e; font-weight: 700; }
+    .subtitle { color: #71717a; font-size: 15px; margin-bottom: 32px; line-height: 1.5; }
 
     .email-row { max-width: 440px; margin: 0 auto 32px; }
     input[type="email"] {
@@ -43,7 +32,7 @@
       outline: none;
       transition: border-color 120ms;
     }
-    input[type="email"]:focus { border-color: #3b82f6; }
+    input[type="email"]:focus { border-color: #4f8ef7; }
     .error { color: #f87171; font-size: 13px; margin-top: 8px; display: none; }
 
     .plans {
@@ -67,10 +56,13 @@
       display: flex;
       flex-direction: column;
     }
+
+    /* Gradient border trick for yearly card */
     .plan-card--yearly {
-      border: 2px solid #f59e0b;
-      background: linear-gradient(160deg, #1c1a0f 0%, #18181b 60%);
-      box-shadow: 0 0 32px rgba(245,158,11,0.12);
+      border: 2px solid transparent;
+      background: linear-gradient(#18181b, #18181b) padding-box,
+                  linear-gradient(135deg, #4f8ef7, #7c3aed) border-box;
+      box-shadow: 0 0 40px rgba(79,142,247,0.12), 0 0 80px rgba(124,58,237,0.08);
     }
 
     .badge-best {
@@ -78,8 +70,8 @@
       top: -14px;
       left: 50%;
       transform: translateX(-50%);
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: #000;
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      color: #fff;
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.08em;
@@ -87,6 +79,7 @@
       padding: 4px 16px;
       border-radius: 20px;
       white-space: nowrap;
+      box-shadow: 0 0 16px rgba(79,142,247,0.4), 0 0 32px rgba(124,58,237,0.25);
     }
 
     .plan-label {
@@ -97,7 +90,12 @@
       color: #71717a;
       margin-bottom: 16px;
     }
-    .plan-card--yearly .plan-label { color: #f59e0b; }
+    .plan-card--yearly .plan-label {
+      background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
 
     .plan-price-row { display: flex; align-items: flex-start; justify-content: center; gap: 2px; margin-bottom: 2px; }
     .plan-currency { font-size: 22px; font-weight: 700; color: #a1a1aa; margin-top: 8px; }
@@ -107,38 +105,38 @@
 
     .save-pill {
       display: inline-block;
-      background: #052e16;
-      color: #4ade80;
+      background: rgba(79,142,247,0.1);
+      color: #7ab3fa;
       font-size: 12px;
       font-weight: 700;
       padding: 4px 12px;
       border-radius: 20px;
       margin-bottom: 20px;
-      border: 1px solid #166534;
+      border: 1px solid rgba(79,142,247,0.3);
     }
 
-    .plan-divider { height: 1px; background: #27272a; margin: 0 0 20px; }
+    .plan-divider { height: 1px; background: #27272a; margin: 0 0 18px; }
+
+    .features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .features li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #a1a1aa; }
+    .features li::before { content: '✓'; color: #22c55e; font-weight: 700; flex-shrink: 0; }
+
     .plan-btn-area { margin-top: auto; }
 
-    .note {
-      color: #3f3f46;
-      font-size: 12px;
-      margin-top: 28px;
-      line-height: 1.6;
-    }
+    .note { color: #3f3f46; font-size: 12px; margin-top: 28px; line-height: 1.6; }
   </style>
 </head>
 <body>
   <div class="wrapper">
     <h1>Universal AI Sync</h1>
     <p class="subtitle">Sync conversations and memory between ChatGPT, Claude, Gemini, and Copilot.</p>
-
-    <ul class="features">
-      <li>Export full conversations between AI platforms</li>
-      <li>Transfer memory to any AI in seconds</li>
-      <li>Supports ChatGPT, Claude, Gemini &amp; Copilot</li>
-      <li>Works entirely in your browser — no data stored</li>
-    </ul>
 
     <div class="email-row">
       <input type="email" id="email-input" placeholder="Your email address" required />
@@ -157,6 +155,12 @@
         <p class="plan-per">per month</p>
         <p class="plan-billed">Billed monthly &middot; cancel anytime</p>
         <div class="plan-divider"></div>
+        <ul class="features">
+          <li>Export full conversations between AI platforms</li>
+          <li>Transfer memory to any AI in seconds</li>
+          <li>Supports ChatGPT, Claude, Gemini &amp; Copilot</li>
+          <li>Works entirely in your browser</li>
+        </ul>
         <div class="plan-btn-area">
           <div id="paypal-btn-monthly"></div>
         </div>
@@ -174,6 +178,12 @@
         <p class="plan-billed">$48 billed once a year</p>
         <div class="save-pill">Save $11.88 &mdash; 20% off</div>
         <div class="plan-divider"></div>
+        <ul class="features">
+          <li>Export full conversations between AI platforms</li>
+          <li>Transfer memory to any AI in seconds</li>
+          <li>Supports ChatGPT, Claude, Gemini &amp; Copilot</li>
+          <li>Works entirely in your browser</li>
+        </ul>
         <div class="plan-btn-area">
           <div id="paypal-btn-yearly"></div>
         </div>
@@ -181,10 +191,7 @@
 
     </div>
 
-    <p class="note">
-      Pay with PayPal or any credit/debit card &mdash; no PayPal account required.<br>
-      Your license key will be emailed to you instantly after subscribing.
-    </p>
+    <p class="note">Your license key will be emailed to you instantly after subscribing.</p>
   </div>
 
   <script src="https://www.paypal.com/sdk/js?client-id=AVenZ_fvXP9kwaOfowSrgq5MdymrWtQrczywA6DCdVxCZHfn94W7O4IoL3f_YGu8HO1Z01MIZNA3dSFa&vault=true&intent=subscription" data-sdk-integration-source="button-factory"></script>
@@ -235,7 +242,7 @@
     }).render('#paypal-btn-monthly')
 
     paypal.Buttons({
-      style: { shape: 'rect', color: 'gold', layout: 'vertical', label: 'subscribe' },
+      style: { shape: 'rect', color: 'blue', layout: 'vertical', label: 'subscribe' },
       createSubscription: function(data, actions) {
         const email = validateEmail()
         if (!email) return Promise.reject(new Error('Email required'))
