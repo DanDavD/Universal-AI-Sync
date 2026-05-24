@@ -60,6 +60,7 @@ module.exports = {
         locale: 'en-US',
         shipping_preference: 'NO_SHIPPING',
         user_action: 'SUBSCRIBE_NOW',
+        landing_page: 'BILLING',
         return_url: returnUrl,
         cancel_url: cancelUrl,
       },
