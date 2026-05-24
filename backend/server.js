@@ -12,20 +12,21 @@ const app = express()
 // ---------------------------------------------------------------------------
 app.use(cors())
 
-// The PayPal webhook route needs the raw body for signature verification.
-// We register it BEFORE the JSON middleware so it gets the raw Buffer.
-app.use('/api/paypal/webhook', require('./routes/paypal').webhookHandler ?? (() => {}))
-
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-
 // Serve static HTML pages (checkout, success, cancel)
 app.use(express.static(path.join(__dirname, 'public')))
 
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// PayPal routes are mounted BEFORE express.json() so the /webhook route
+// receives a raw Buffer for signature verification. The /subscribe and
+// /confirm routes apply express.json() themselves.
 app.use('/api/paypal',  require('./routes/paypal'))
+
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
 app.use('/api/license', require('./routes/license'))
 app.use('/api/users',  require('./routes/users'))
 app.use('/api/admin',  require('./routes/admin'))

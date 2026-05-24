@@ -600,6 +600,23 @@
       box-shadow: 0 0 22px rgba(79,142,247,0.5), 0 0 44px rgba(124,58,237,0.32);
       filter: brightness(1.1);
     }
+
+    #btn-manage-footer {
+      all: unset;
+      display: none;
+      cursor: pointer;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-3);
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: var(--ease);
+      letter-spacing: .03em;
+    }
+    #btn-manage-footer.visible { display: flex; }
+    #btn-manage-footer:hover { color: var(--text-2); border-color: rgba(255,255,255,0.2); }
   </style>
 </head>
 <body>
@@ -608,7 +625,8 @@
   <header>
     <span class="header-title">Universal AI Sync</span>
     <div style="display:flex;align-items:center;gap:5px;">
-      <button id="btn-upgrade-footer" class="visible" title="Upgrade to Premium — unlock file-based sync and more">Upgrade</button>
+      <button id="btn-upgrade-footer" class="visible" title="Upgrade to Sync Pro — unlock file-based sync and more">Upgrade</button>
+      <button id="btn-manage-footer" title="Manage your PayPal subscription">Manage Plan</button>
       <span class="header-badge header-badge--free" id="header-badge">Free</span>
     </div>
   </header>

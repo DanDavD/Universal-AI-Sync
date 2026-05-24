@@ -96,6 +96,7 @@ const upgradeEmail     = /** @type {HTMLInputElement} */ (document.getElementByI
 const upgradeKey       = /** @type {HTMLInputElement} */ (document.getElementById('upgrade-key'))
 const keyStatus        = /** @type {HTMLElement} */ (document.getElementById('key-status'))
 const btnUpgradeFooter = /** @type {HTMLButtonElement} */ (document.getElementById('btn-upgrade-footer'))
+const btnManageFooter  = /** @type {HTMLButtonElement} */ (document.getElementById('btn-manage-footer'))
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -119,6 +120,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Both upgrade entry points open the same upgrade view
   btnUpgradeFooter?.addEventListener('click', showUpgradeView)
+  btnManageFooter?.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://www.paypal.com/myaccount/autopay/' })
+  })
   btnBack?.addEventListener('click', showMainView)
 
   btnSubscribe?.addEventListener('click', () => {
@@ -218,12 +222,13 @@ function applyPlan(plan, email) {
   if (plan === 'premium') {
     headerBadge.textContent  = 'Pro'
     headerBadge.className    = 'header-badge header-badge--premium'
-    headerBadge.title        = email ? `Premium · ${email}` : 'Premium plan'
+    headerBadge.title        = email ? `Sync Pro · ${email}` : 'Sync Pro plan'
     btnFile.textContent      = 'File-Based Sync'
     btnFile.classList.remove('btn--locked')
     btnFile.title            = 'Upload full conversation as a file — instant, no size limits'
     btnUpgradeFooter.classList.remove('visible')
-    endCooldown() // Premium has no cooldown; also clears any notice pre-rendered before plan resolved
+    btnManageFooter.classList.add('visible')
+    endCooldown()
   } else {
     headerBadge.textContent = 'Free'
     headerBadge.className   = 'header-badge header-badge--free'
@@ -231,6 +236,7 @@ function applyPlan(plan, email) {
     btnFile.textContent     = 'File-Based Sync'
     btnFile.title           = '1 free use every 5 hours — upgrade for unlimited'
     btnUpgradeFooter.classList.add('visible')
+    btnManageFooter.classList.remove('visible')
     clearCooldownTimers()
     initFileSyncCooldown() // Checks storage and starts countdown if still in cooldown
   }

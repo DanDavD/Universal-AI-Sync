@@ -10,7 +10,7 @@ const { sendLicenseEmail } = require('../lib/mailer')
 // Body: { email }
 // Creates a PayPal subscription and redirects user to PayPal approval page.
 // ---------------------------------------------------------------------------
-router.post('/subscribe', async (req, res) => {
+router.post('/subscribe', express.json(), async (req, res) => {
   const email = (req.body?.email ?? '').trim().toLowerCase()
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' })
@@ -81,7 +81,7 @@ router.get('/success', async (req, res) => {
 // Body: { email, subscriptionId }
 // Called by checkout.html after the user approves the PayPal subscription.
 // ---------------------------------------------------------------------------
-router.post('/confirm', async (req, res) => {
+router.post('/confirm', express.json(), async (req, res) => {
   const email          = (req.body?.email ?? '').trim().toLowerCase()
   const subscriptionId = req.body?.subscriptionId
   const extId          = req.body?.extId ?? ''
