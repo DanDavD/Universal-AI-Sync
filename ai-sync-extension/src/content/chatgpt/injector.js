@@ -1,11 +1,11 @@
 // @ts-check
-import { injectAndSubmit, clickElement, sleep } from '../shared/eventSimulator.js'
+import { injectAndSubmit, clickElement, sleep, clearInput } from '../shared/eventSimulator.js'
 import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
 
 const CHUNK_SIZE  = 12500
-const CHUNK_DELAY = 1500
+const CHUNK_DELAY = 2000
 
 /**
  * @param {string} text
@@ -148,12 +148,16 @@ export async function injectSync(summary, sel, onProgress = null) {
     const isLast = i === chunks.length - 1
     onProgress?.(i + 1, chunks.length)
     await injectText(wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel, { autoSubmit: true })
-    // Click stop after every chunk so the send button is always available for the next one
     for (let t = 0; t < 20; t++) {
       const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
       if (stop) { clickElement(stop); break }
       await sleep(150)
     }
-    if (!isLast) await sleep(CHUNK_DELAY)
+    if (isLast) {
+      const input = /** @type {HTMLElement|null} */ (queryFirst(sel.input))
+      if (input) await clearInput(input)
+    } else {
+      await sleep(CHUNK_DELAY)
+    }
   }
 }

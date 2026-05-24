@@ -315,16 +315,7 @@ function buildLocalSyncPrompt(conversation) {
       return text ? `${label}: ${text}` : null
     })
     .filter((l) => l !== null)
-
-  return [
-    '[Context Transfer] The following is a full conversation from another AI assistant session. Please read and internalize this as our shared context going forward:',
-    '',
-    '--- CONTEXT START ---',
-    lines.join('\n\n'),
-    '--- CONTEXT END ---',
-    '',
-    'Please confirm you have received this context by briefly acknowledging the main topics covered.',
-  ].join('\n')
+  return lines.join('\n\n')
 }
 
 /**

@@ -1,10 +1,10 @@
 // @ts-check
-import { injectAndSubmit, clickElement, sleep } from '../shared/eventSimulator.js'
+import { injectAndSubmit, setContentEditable, setNativeValue, simulateEnter, clickElement, sleep, clearInput } from '../shared/eventSimulator.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
 
-const CHUNK_SIZE  = 12500
-const CHUNK_DELAY = 1500
+const CHUNK_SIZE  = 9500
+const CHUNK_DELAY = 2000
 
 /**
  * Waits for any selector in `sel.input` to appear, trying the full list every
@@ -26,6 +26,65 @@ async function waitForCopilotInput(sel, timeout = 20000) {
 }
 
 /**
+ * Injects text into Copilot's input and submits it.
+ *
+ * Tries three submit methods on every attempt in order:
+ *   1. Click the send button (re-queried fresh — Copilot re-renders it on text change)
+ *   2. form.requestSubmit() — works even when the button selector misses
+ *   3. Enter keydown on the focused input
+ *
+ * @param {HTMLElement} input
+ * @param {string} text
+ * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
+ */
+async function copilotInjectAndSubmit(input, text, sel) {
+  if (input.getAttribute('contenteditable') === 'true' || input.isContentEditable) {
+    await setContentEditable(input, text)
+  } else {
+    setNativeValue(/** @type {HTMLInputElement} */ (input), text)
+  }
+
+  // Give Copilot time to register the text and enable the send button
+  await sleep(500)
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    if (attempt > 0) await sleep(600)
+
+    // Focus must be on the input before any submit attempt
+    input.focus()
+    await sleep(80)
+
+    // Method 1: send button (fresh reference every time)
+    const btn = /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn))
+    if (btn?.isConnected) clickElement(btn)
+
+    await sleep(200)
+
+    // Method 2: form.requestSubmit() — bypasses button-selector issues entirely
+    const form = /** @type {HTMLFormElement|null} */ (input.closest('form'))
+    if (form) {
+      try { form.requestSubmit() } catch (_) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      }
+    }
+
+    await sleep(200)
+
+    // Method 3: Enter key on the focused input
+    simulateEnter(input)
+
+    // Wait to see if any of the three methods cleared the input
+    await sleep(1000)
+
+    const isEmpty = input.isContentEditable
+      ? !(input.textContent ?? '').trim()
+      : !(/** @type {HTMLTextAreaElement} */ (input).value ?? '').trim()
+
+    if (isEmpty) return
+  }
+}
+
+/**
  * @param {string} text
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
  * @param {{ autoSubmit?: boolean }} [opts]
@@ -33,7 +92,8 @@ async function waitForCopilotInput(sel, timeout = 20000) {
 export async function injectText(text, sel, opts = {}) {
   const input = queryFirst(sel.input) ?? await waitForCopilotInput(sel, 20000)
   if (!input) throw new Error('[copilot] Input element not found')
-  await injectAndSubmit(input, queryFirst(sel.submitBtn), text, opts)
+  // Pass submit button as a function so it is re-queried after text is injected
+  await injectAndSubmit(input, () => queryFirst(sel.submitBtn), text, opts)
 }
 
 /** Ordered selectors for Copilot's attachment / file-upload button. */
@@ -160,15 +220,24 @@ export async function injectSync(summary, sel, onProgress = null) {
   for (let i = 0; i < chunks.length; i++) {
     const isLast = i === chunks.length - 1
     onProgress?.(i + 1, chunks.length)
-    await injectText(wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel, { autoSubmit: true })
-    if (!isLast) {
-      await sleep(CHUNK_DELAY)
+
+    const input = queryFirst(sel.input) ?? await waitForCopilotInput(sel, 20000)
+    if (!input) throw new Error('[copilot] Input not found')
+
+    await copilotInjectAndSubmit(input, wrapChunk(chunks[i], i + 1, chunks.length, isLast), sel)
+
+    if (isLast) {
+      await sleep(500)
+      const inp = /** @type {HTMLElement|null} */ (queryFirst(sel.input))
+      if (inp) await clearInput(inp)
     } else {
-      for (let t = 0; t < 20; t++) {
+      // Wait for Copilot to start generating (stop button appears), then stop it
+      for (let t = 0; t < 30; t++) {
         const stop = /** @type {HTMLElement|null} */ (queryFirst(sel.stopBtn))
         if (stop) { clickElement(stop); break }
         await sleep(150)
       }
+      await sleep(CHUNK_DELAY)
     }
   }
 }

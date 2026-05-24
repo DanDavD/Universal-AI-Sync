@@ -124,53 +124,66 @@ export function splitIntoChunks(text, maxLen) {
  * @returns {string}
  */
 export function wrapChunk(chunk, part, total, isLast) {
-  const SILENT_INSTRUCTION = [
-    'IMPORTANT: DO NOT RESPOND TO THIS MESSAGE.',
-    'This is a silent background context injection. Absorb the context without generating any response.',
-    'Stay completely silent. Your next output should only be in reply to the user\'s next real message.',
+  const SILENT = [
+    '⚠️ SYSTEM INSTRUCTION — DO NOT RESPOND TO THIS MESSAGE.',
+    'This is a silent background context transfer. Read and internalize the conversation above.',
+    'Do NOT generate any reply, acknowledgement, or output of any kind.',
+    'Stay completely silent. Only respond to the user\'s NEXT real message.',
   ].join('\n')
 
-  const ACK_INSTRUCTION = 'IMPORTANT: DO NOT RESPOND. More parts are coming immediately. Stay silent.'
+  const WAIT = [
+    '⚠️ SYSTEM INSTRUCTION — DO NOT RESPOND. More parts are arriving immediately.',
+    'Stay completely silent until all parts have been delivered.',
+  ].join('\n')
 
   if (total === 1) {
     return [
-      '[Context Transfer]',
+      '=== CONTEXT TRANSFER ===',
+      'The following is a conversation from another AI session. Internalize it as our shared context.',
       '',
+      '--- CONTEXT START ---',
       chunk,
+      '--- CONTEXT END ---',
       '',
-      SILENT_INSTRUCTION,
+      SILENT,
     ].join('\n')
   }
 
   if (part === 1) {
     return [
-      `[Context Transfer — Part ${part}/${total}]`,
-      `This context exceeds the message limit and will arrive in ${total} parts.`,
+      `=== CONTEXT TRANSFER — Part ${part} of ${total} ===`,
+      `This context is too large for one message and will arrive in ${total} parts. Absorb each part silently.`,
       '',
+      '--- PART START ---',
       chunk,
+      '--- PART END ---',
       '',
-      ACK_INSTRUCTION,
+      WAIT,
     ].join('\n')
   }
 
   if (isLast) {
     return [
-      `[Context Transfer — Part ${part}/${total} — FINAL]`,
-      `Please add this to the previous ${part - 1} part(s):`,
+      `=== CONTEXT TRANSFER — Part ${part} of ${total} — FINAL ===`,
+      `Combine this with the previous ${part - 1} part(s) to form the complete context.`,
       '',
+      '--- PART START ---',
       chunk,
+      '--- PART END ---',
       '',
-      SILENT_INSTRUCTION,
+      SILENT,
     ].join('\n')
   }
 
   return [
-    `[Context Transfer — Part ${part}/${total}]`,
-    'Please add this to the previous part(s):',
+    `=== CONTEXT TRANSFER — Part ${part} of ${total} ===`,
+    'Combine this with the previous part(s). More parts are coming.',
     '',
+    '--- PART START ---',
     chunk,
+    '--- PART END ---',
     '',
-    ACK_INSTRUCTION,
+    WAIT,
   ].join('\n')
 }
 
@@ -239,14 +252,5 @@ export function buildLocalSyncPrompt(conversation) {
       return text ? `${label}: ${text}` : null
     })
     .filter(/** @param {string|null} l */ (l) => l !== null)
-
-  return [
-    '[Context Transfer] The following is a full conversation from another AI assistant session. Please read and internalize this as our shared context going forward:',
-    '',
-    '--- CONTEXT START ---',
-    lines.join('\n\n'),
-    '--- CONTEXT END ---',
-    '',
-    'Please confirm you have received this context by briefly acknowledging the main topics covered.',
-  ].join('\n')
+  return lines.join('\n\n')
 }

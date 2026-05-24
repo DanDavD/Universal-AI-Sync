@@ -323,9 +323,11 @@ async function refresh() {
     if (saved.selectedDestId != null)
       app.dest = app.tabs.find((t) => t.id === saved.selectedDestId) ?? null
 
-    // Set a sensible focus after restore
-    if (app.source && app.dest)      app.focus = 'source'
-    else if (app.source && !app.dest) app.focus = 'dest'
+    // Guard: dest cannot exist without source (e.g. source tab was closed)
+    if (!app.source && app.dest) app.dest = null
+
+    // Focus always snaps to the first empty slot
+    app.focus = (app.source && app.dest) ? 'source' : app.source ? 'dest' : 'source'
 
     render()
     setStatus('')
@@ -511,10 +513,13 @@ function onTabClick(tabId) {
   const tab = app.tabs.find((t) => t.id === tabId)
   if (!tab) return
 
-  if (app.focus === 'source') {
+  if (!app.source) {
+    // Source must always be filled before dest
     app.source = tab
-    // Auto-advance focus to dest only if dest is still empty
-    if (!app.dest) setFocus('dest')
+    app.focus = 'dest'
+  } else if (app.focus === 'source') {
+    app.source = tab
+    if (!app.dest) app.focus = 'dest'
   } else {
     app.dest = tab
   }
@@ -524,13 +529,18 @@ function onTabClick(tabId) {
 }
 
 /**
- * Clears a slot and refocuses it, making that AI available again in the list.
+ * Clears a slot. Clearing source also clears dest (dest can't exist without source).
+ * Focus always snaps to the first empty slot.
  * @param {'source'|'dest'} slotName
  */
 function clearSlot(slotName) {
-  if (slotName === 'source') app.source = null
-  else                        app.dest   = null
-  setFocus(slotName)
+  if (slotName === 'source') {
+    app.source = null
+    app.dest   = null  // dest cannot exist without a source
+  } else {
+    app.dest = null
+  }
+  app.focus = app.source ? 'dest' : 'source'
   render()
   saveSelection()
 }

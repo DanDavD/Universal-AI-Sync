@@ -202,6 +202,18 @@ export async function injectAndSubmit(inputEl, submitElOrFn, text, opts = {}) {
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
+ * Clears a contenteditable or input/textarea element without submitting.
+ * @param {HTMLElement} el
+ */
+export async function clearInput(el) {
+  if (el.getAttribute('contenteditable') === 'true' || el.isContentEditable) {
+    await setContentEditable(el, '')
+  } else {
+    setNativeValue(/** @type {HTMLInputElement} */ (el), '')
+  }
+}
+
+/**
  * Finds an existing `input[type="file"]` or reveals one by clicking the
  * platform's attachment button, intercepting the `.click()` that would
  * otherwise open the native file-picker dialog.
