@@ -43,6 +43,8 @@ function deepQuery(selector, root = document) {
 const ATTACH_BTN_SELECTORS = [
   'ms-attachment-button button',
   'bard-upload-button button',
+  'button[aria-label="Add files and more"]',
+  'button[aria-label="Upload files"]',
   'button[aria-label*="Upload"]',
   'button[aria-label*="Attach"]',
   'button[aria-label*="upload"]',
@@ -53,6 +55,48 @@ const ATTACH_BTN_SELECTORS = [
   '.upload-button',
   'button[jsname][data-tooltip*="file" i]',
 ]
+
+/**
+ * Walks UP the DOM from the known-working chat input element to find a
+ * container that encloses the input toolbar (and therefore the attach button),
+ * but NOT the sidebar navigation.
+ *
+ * This is the correct strategy: we start from something we know works
+ * (the text input) and find its parent area, rather than searching
+ * top-down from the document (which finds sidebar buttons first).
+ *
+ * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
+ * @returns {Element|Document}
+ */
+function getInputAreaRoot(sel) {
+  const input = /** @type {HTMLElement|null} */ (queryFirst(sel.input))
+  if (!input) return document
+
+  // Walk up the DOM looking for a meaningful input-toolbar container.
+  // Stop before <body> to avoid accidentally returning the full document.
+  let el = /** @type {Element|null} */ (input.parentElement)
+  for (let i = 0; i < 15 && el && el !== document.body; i++) {
+    const tag = el.tagName.toLowerCase()
+    if (
+      tag === 'form' ||
+      tag === 'ms-footer' ||
+      tag === 'ms-chat-query' ||
+      tag === 'ms-text-chunk-input' ||
+      tag === 'ms-prompt-chip-bar' ||
+      tag === 'ms-input-box' ||
+      tag === 'ms-bottom-input-bar' ||
+      el.getAttribute('role') === 'textbox' ||
+      el.classList.contains('input-area') ||
+      el.classList.contains('query-box')
+    ) {
+      return el
+    }
+    el = el.parentElement
+  }
+
+  // Last resort: <main> excludes the sidebar <nav> but is broader than the input container.
+  return input.closest('main') ?? document
+}
 
 /**
  * Finds the "Upload files" option in Gemini's attachment dropdown menu.
@@ -69,7 +113,9 @@ function findUploadMenuItem() {
     const ariaLabel = (el.getAttribute('aria-label') ?? '').toLowerCase()
     if (
       /^upload\s+files?$/.test(text) ||
-      /^upload\s+files?/.test(ariaLabel)
+      /^upload\s+files?/.test(ariaLabel) ||
+      /^add\s+files?$/.test(text) ||
+      /^add\s+files?/.test(ariaLabel)
     ) {
       return /** @type {HTMLElement} */ (el)
     }
@@ -167,10 +213,11 @@ function openFileInputViaMenu(attachBtn) {
  * Phase 1 – deepQuery: works when Gemini pre-renders the file input inside
  *   an open Shadow DOM subtree (no button interaction needed).
  *
- * Phase 2 – menu + triple detection: locates the attach button via deepQuery,
- *   clicks it to open Gemini's new dropdown menu, waits for the "Upload files"
- *   item, clicks it, then detects the resulting file input via monkey-patching,
- *   composedPath interception, or MutationObserver — whichever fires first.
+ * Phase 2 – menu + scoped search: locates the attach button by walking UP
+ *   from the known text input element to find its container area, then
+ *   searching within that scope. This prevents matching sidebar buttons.
+ *   Falls back to <main> (still excludes sidebar <nav>) if needed.
+ *   NEVER falls back to full document to avoid matching sidebar buttons.
  *
  * @param {string} markdownContent
  * @param {string} sourcePlatform
@@ -190,13 +237,34 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
   // Phase 2: click attach button → handle dropdown menu → detect file input
   if (!fileInput) {
     let attachBtn = /** @type {HTMLElement|null} */ (null)
+
+    // Strategy: walk UP from the known-working text input to find its container,
+    // then search within that scope. This guarantees we only find buttons that
+    // are co-located with the input, NOT buttons in the sidebar history panel.
+    const inputAreaRoot = getInputAreaRoot(sel)
     for (const s of ATTACH_BTN_SELECTORS) {
-      attachBtn = /** @type {HTMLElement|null} */ (deepQuery(s))
+      attachBtn = /** @type {HTMLElement|null} */ (deepQuery(s, inputAreaRoot))
       if (attachBtn) break
     }
 
+    // If the input area root was too narrow, try <main> as a broader scope.
+    // <main> excludes the sidebar <nav> but still covers the full chat area.
     if (!attachBtn) {
-      throw new Error('[gemini] No file input or attach button found. Make sure you are on the Gemini chat page.')
+      const mainEl = document.querySelector('main')
+      if (mainEl && mainEl !== inputAreaRoot) {
+        for (const s of ATTACH_BTN_SELECTORS) {
+          attachBtn = /** @type {HTMLElement|null} */ (deepQuery(s, mainEl))
+          if (attachBtn) break
+        }
+      }
+    }
+
+    // NOTE: We intentionally do NOT fall back to the full document here.
+    // Searching the full document finds sidebar "..." buttons that open
+    // "Share conversation" menus instead of file upload dialogs.
+
+    if (!attachBtn) {
+      throw new Error('[gemini] Attach button not found in the chat input area. Make sure you are on the Gemini chat page.')
     }
 
     fileInput = await openFileInputViaMenu(attachBtn)
