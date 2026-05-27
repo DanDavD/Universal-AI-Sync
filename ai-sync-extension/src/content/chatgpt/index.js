@@ -14,6 +14,11 @@ let sel
 let overlay
 
 async function init() {
+  // Guard against double-injection. MV3's onInstalled re-injects this script
+  // into already-open tabs; if the script was already running, do nothing.
+  if (/** @type {any} */ (window).__aiSyncLoaded) return
+  /** @type {any} */ (window).__aiSyncLoaded = true
+
   sel = await loadSelectors(PLATFORM)
   await chrome.runtime.sendMessage({ type: 'REGISTER_TAB', platform: PLATFORM })
 

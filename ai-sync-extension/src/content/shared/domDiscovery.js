@@ -49,16 +49,26 @@ export function deepQueryAll(selector, root = document, acc = []) {
 // ─── Input area scoping ───────────────────────────────────────────────────────
 
 /**
- * Walks UP the DOM from the text input element to find its toolbar container.
+ * Walks UP the DOM from the text input to find the tightest container that
+ * holds the input toolbar — and critically, NEVER returns a container that
+ * also holds the sidebar.
  *
- * Universal heuristic — a chat input toolbar is:
- *   • a <form> element, OR
- *   • wide  (> 45 % of viewport width)
- *   • short (< 40 % of viewport height)
- *   • in the bottom half of the viewport (top > 40 % of vh)
+ * Three-pass strategy (tried in order):
  *
- * Starting from the *known* input (not from document) guarantees we never
- * drift into the sidebar or header — we only go UP, never sideways.
+ *   Pass 1 – walk-up with explicit stops
+ *     Stops at <form> (ChatGPT), known Angular/Web-Component toolbar tags
+ *     (Gemini), or any element that matches the layout heuristic for an
+ *     input toolbar (wide, short, bottom of screen).
+ *
+ *   Pass 2 – "direct child of <main> containing the input"   ← KEY FIX
+ *     <main> on Gemini (and other SPAs) often contains BOTH the sidebar and
+ *     the chat panel as direct children. By selecting the direct child that
+ *     *contains* the input, we always get the chat panel — never the sidebar.
+ *     This works regardless of class names, component tags, or layout
+ *     dimensions, so it is truly immune to DOM restructuring.
+ *
+ *   Pass 3 – limited walk-up (10 levels max)
+ *     Last resort: never reach document.body (which is always too broad).
  *
  * @param {Element} inputEl
  * @returns {Element}
@@ -67,17 +77,46 @@ export function getInputAreaRoot(inputEl) {
   const vw = window.innerWidth
   const vh = window.innerHeight
 
+  // Pass 1 ─────────────────────────────────────────────────────────────────
   let el = /** @type {Element|null} */ (inputEl.parentElement)
   while (el && el !== document.body) {
-    if (el.tagName.toLowerCase() === 'form') return el
+    const tag = el.tagName.toLowerCase()
+
+    // Hard stops: known toolbar container element types
+    if (tag === 'form') return el
+    if (/^ms-(footer|chat-query|prompt-chip-bar|input-box|bottom-input-bar|text-chunk-input)$/.test(tag)) return el
+
+    // Universal layout heuristic: wide, short, in the lower half of screen
     const r = el.getBoundingClientRect()
-    if (r.width > vw * 0.45 && r.height > 0 && r.height < vh * 0.4 && r.top > vh * 0.4) {
+    if (r.width > vw * 0.45 && r.height > 0 && r.height < vh * 0.35 && r.top > vh * 0.5) {
       return el
     }
+
     el = el.parentElement
   }
-  // <main> excludes sidebar <nav> but still covers the full chat area
-  return document.querySelector('main') ?? document.body
+
+  // Pass 2 ─────────────────────────────────────────────────────────────────
+  // Find the direct child of <main> that CONTAINS the input element.
+  // In Gemini / SPAs, <main> has two direct children: sidebar + chat panel.
+  // We pick the one that contains our input → always the chat panel.
+  // Note: .contains() works because the input element is in the light DOM
+  // (confirmed by the fact that document.querySelector(sel.input) finds it).
+  const main = document.querySelector('main')
+  if (main && main.contains(inputEl)) {
+    for (const child of main.children) {
+      if (child.contains(inputEl)) return child
+    }
+    // Input is directly in <main> with no wrapping child — use <main>
+    return main
+  }
+
+  // Pass 3 ─────────────────────────────────────────────────────────────────
+  // Never return document.body; walk up at most 10 levels.
+  el = inputEl
+  for (let i = 0; i < 10 && el.parentElement && el.parentElement !== document.body; i++) {
+    el = el.parentElement
+  }
+  return el
 }
 
 // ─── Text input discovery ─────────────────────────────────────────────────────
@@ -265,13 +304,19 @@ export async function findFileInput(inputEl, submitEl, knownSelectors = []) {
       btn = /** @type {HTMLElement|null} */ (deepQuery(s, inputAreaRoot))
       if (btn) break
     }
-    // One broader fallback: <main> (still excludes sidebar)
+    // One broader fallback: the direct child of <main> containing the input
+    // (same scope as Pass 2 of getInputAreaRoot — the chat panel, NOT the sidebar)
     if (!btn) {
       const main = document.querySelector('main')
-      if (main) {
-        for (const s of knownSelectors) {
-          btn = /** @type {HTMLElement|null} */ (deepQuery(s, main))
-          if (btn) break
+      if (main && main.contains(inputEl)) {
+        for (const child of main.children) {
+          if (child.contains(inputEl)) {
+            for (const s of knownSelectors) {
+              btn = /** @type {HTMLElement|null} */ (deepQuery(s, child))
+              if (btn) break
+            }
+            break
+          }
         }
       }
     }
@@ -283,18 +328,28 @@ export async function findFileInput(inputEl, submitEl, knownSelectors = []) {
 
   // Phase 3 — probe buttons near the input (no selector knowledge needed)
   const allBtns = /** @type {HTMLElement[]} */ (deepQueryAll('button,[role="button"]', inputAreaRoot))
+  const ir = inputEl.getBoundingClientRect()
+
   const candidates = allBtns.filter(el => {
     if (el === inputEl || el === submitEl) return false
     if ((el.textContent ?? '').trim().length > 20) return false     // text button
     if (SKIP_BTN_PATTERN.test(el.getAttribute('aria-label') ?? '')) return false
     const r = el.getBoundingClientRect()
-    return r.width > 0 && r.height > 0
+    if (r.width === 0 || r.height === 0) return false
+    // ── Geometric sidebar exclusion (belt-and-suspenders) ────────────────
+    // The attach button is always IN or to the LEFT of the input's left edge
+    // by at most one button width. Sidebar buttons are far to the left.
+    // Rule: button must overlap or be within 120 px to the left of the input.
+    if (r.right < ir.left - 120) return false
+    // Rule: button must be in roughly the same vertical band as the input
+    // (within 80 px above or below). Sidebar list items are far above.
+    if (r.top > ir.bottom + 80 || r.bottom < ir.top - 80) return false
+    return true
   })
 
   if (!candidates.length) return null
 
   // Sort by physical proximity to the input — closest button first
-  const ir = inputEl.getBoundingClientRect()
   candidates.sort((a, b) => {
     const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect()
     return Math.hypot(ar.left - ir.left, ar.top - ir.top) -

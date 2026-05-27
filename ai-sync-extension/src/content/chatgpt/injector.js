@@ -1,9 +1,9 @@
 // @ts-check
-import { injectAndSubmit, clickElement, sleep, clearInput } from '../shared/eventSimulator.js'
+import { injectAndSubmit, clickElement, simulateEnter, sleep, clearInput } from '../shared/eventSimulator.js'
 import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
-import { discoverInputEl, findFileInput, getInputAreaRoot, waitForFileChip } from '../shared/domDiscovery.js'
+import { discoverInputEl, findFileInput } from '../shared/domDiscovery.js'
 
 const CHUNK_SIZE  = 12500
 const CHUNK_DELAY = 2000
@@ -35,11 +35,72 @@ const ATTACH_BTN_SELECTORS = [
 ]
 
 /**
- * Attaches a markdown file to ChatGPT and sends a context prompt.
- * Uses the universal findFileInput() pipeline from domDiscovery.
+ * Returns true if the button is currently disabled by any mechanism.
+ * @param {Element} btn
+ */
+function isDisabled(btn) {
+  return btn.hasAttribute('disabled')
+    || btn.getAttribute('aria-disabled') === 'true'
+    || btn.getAttribute('data-disabled') === 'true'
+}
+
+/**
+ * Polls until the submit button exists AND is not disabled.
  *
- * ChatGPT usually pre-renders input[type="file"] in the DOM, so Phase 1
- * of findFileInput() resolves instantly without any button clicking.
+ * ChatGPT keeps the send button disabled while a file is uploading to its
+ * servers. It only enables it once the upload completes — even if the text
+ * input is still empty. This makes "button becomes enabled" the most reliable
+ * signal that the file is ready to be attached to a message.
+ *
+ * @param {string} submitSelector
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>} true = button became enabled; false = timed out
+ */
+async function waitForSubmitEnabled(submitSelector, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const btn = queryFirst(submitSelector)
+    if (btn && !isDisabled(btn)) return true
+    await sleep(200)
+  }
+  return false
+}
+
+/**
+ * Polls until the submit button is enabled, then clicks it.
+ * Falls back to Enter key if the button never enables within timeoutMs.
+ *
+ * @param {string} submitSelector
+ * @param {HTMLElement} inputEl
+ * @param {number} timeoutMs
+ */
+async function clickWhenReady(submitSelector, inputEl, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await sleep(150)
+    const btn = /** @type {HTMLElement|null} */ (queryFirst(submitSelector))
+    if (btn && btn.isConnected && !isDisabled(btn)) {
+      clickElement(btn)
+      return
+    }
+  }
+  // Fallback: Enter key if button never became enabled
+  simulateEnter(inputEl)
+}
+
+/**
+ * Attaches a markdown file to ChatGPT and sends a context prompt.
+ *
+ * ChatGPT uploads files to its servers before a message can be sent.
+ * The "file is ready" signal is the send button transitioning disabled → enabled
+ * (ChatGPT keeps it disabled during upload, enables it the moment the upload
+ * completes — even with an empty text input).
+ *
+ * Flow:
+ *   1. Find and set the file input          (Phase 1: pre-rendered, instant)
+ *   2. waitForSubmitEnabled                 (= file fully uploaded to ChatGPT)
+ *   3. Inject prompt text WITHOUT autoSubmit
+ *   4. clickWhenReady                       (= click send as soon as React re-enables)
  *
  * @param {string} markdownContent
  * @param {string} sourcePlatform
@@ -49,7 +110,11 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
   const inputEl = /** @type {HTMLElement} */ (queryFirst(sel.input) ?? discoverInputEl())
   if (!inputEl) throw new Error('[chatgpt] Input not found')
 
-  const fileInput = await findFileInput(inputEl, /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn)), ATTACH_BTN_SELECTORS)
+  const fileInput = await findFileInput(
+    inputEl,
+    /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn)),
+    ATTACH_BTN_SELECTORS
+  )
   if (!fileInput) throw new Error('[chatgpt] No file input found. File upload may not be available on this page.')
 
   const file = new File([markdownContent], `context-from-${sourcePlatform}.md`, { type: 'text/plain' })
@@ -59,14 +124,15 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
   fileInput.dispatchEvent(new Event('change', { bubbles: true }))
   fileInput.dispatchEvent(new InputEvent('input', { bubbles: true }))
 
-  // Wait for ChatGPT to finish uploading the file and show the chip in the UI.
-  // ChatGPT uploads to its servers before showing the chip — this can take
-  // 1–5 s. We watch the DOM and send only after the chip has fully rendered
-  // (300 ms debounce after last mutation), with a 10 s hard fallback.
-  await waitForFileChip(getInputAreaRoot(inputEl), 10000)
+  // Wait for the upload to complete — the send button is our signal.
+  await waitForSubmitEnabled(sel.submitBtn, 15000)
 
+  // Inject prompt WITHOUT auto-submit so we fully control the click timing.
   const prompt = `I've attached our full conversation history from ${sourcePlatform}. Please read the context file and briefly acknowledge the main topics so we can continue from where we left off.`
-  await injectText(prompt, sel, { autoSubmit: true })
+  await injectText(prompt, sel, { autoSubmit: false })
+
+  // Click send as soon as React registers the text and re-enables the button.
+  await clickWhenReady(sel.submitBtn, inputEl, 8000)
 }
 
 /**

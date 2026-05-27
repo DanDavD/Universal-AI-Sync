@@ -428,6 +428,36 @@ chrome.runtime.onMessageExternal.addListener((msg, _sender, sendResponse) => {
 })
 
 // ---------------------------------------------------------------------------
+// Re-inject content scripts into already-open AI tabs after install/update.
+// MV3 does NOT automatically inject content scripts into existing tabs when
+// the extension is installed or updated — those tabs miss the REGISTER_TAB
+// message and never appear in the popup's tab list.
+// ---------------------------------------------------------------------------
+
+/** @type {{ matches: string[], file: string }[]} */
+const CONTENT_SCRIPTS = [
+  { matches: ['https://chat.openai.com/*', 'https://chatgpt.com/*'], file: 'content/chatgpt.js' },
+  { matches: ['https://claude.ai/*'],                                 file: 'content/claude.js'  },
+  { matches: ['https://gemini.google.com/*'],                        file: 'content/gemini.js'  },
+  { matches: ['https://copilot.microsoft.com/*'],                    file: 'content/copilot.js' },
+]
+
+chrome.runtime.onInstalled.addListener(async () => {
+  for (const { matches, file } of CONTENT_SCRIPTS) {
+    const tabs = await chrome.tabs.query({ url: matches })
+    for (const tab of tabs) {
+      if (!tab.id) continue
+      // The content scripts guard against double-init via window.__aiSyncLoaded,
+      // so injecting into a tab that already has the script is safe.
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: [file],
+      }).catch(() => {}) // tab may be closing or protected — ignore
+    }
+  }
+})
+
+// ---------------------------------------------------------------------------
 // Tab lifecycle cleanup
 // ---------------------------------------------------------------------------
 chrome.tabs.onRemoved.addListener(async (tabId) => {
