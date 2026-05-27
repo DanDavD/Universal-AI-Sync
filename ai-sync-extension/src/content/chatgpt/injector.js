@@ -3,6 +3,7 @@ import { injectAndSubmit, clickElement, sleep, clearInput } from '../shared/even
 import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
+import { discoverInputEl, findFileInput, getInputAreaRoot, waitForFileChip } from '../shared/domDiscovery.js'
 
 const CHUNK_SIZE  = 12500
 const CHUNK_DELAY = 2000
@@ -14,114 +15,41 @@ const CHUNK_DELAY = 2000
  */
 export async function injectText(text, sel, opts = {}) {
   const input = /** @type {HTMLElement|null} */ (
-    queryFirst(sel.input) ?? await waitForElement(sel.input.split(',')[0].trim())
+    queryFirst(sel.input)
+      ?? await waitForElement(sel.input.split(',')[0].trim())
+      ?? discoverInputEl()
   )
   if (!input) throw new Error('[chatgpt] Input element not found')
   await injectAndSubmit(input, () => queryFirst(sel.submitBtn), text, opts)
 }
 
-/** Ordered selectors for ChatGPT's attachment / file-upload button. */
+/** Fast-path selectors for ChatGPT's attach button — tried before probing. */
 const ATTACH_BTN_SELECTORS = [
   'button[aria-label="Attach files"]',
   'button[data-testid="attach-button"]',
+  '[data-testid="composer-attach-button"]',
   'button[aria-label*="Attach" i]',
   'button[aria-label*="Upload" i]',
   'button[aria-label*="Add image" i]',
   'button[aria-label*="Add file" i]',
-  '[data-testid="composer-attach-button"]',
 ]
 
 /**
- * Locates the ChatGPT chat-specific file input.
+ * Attaches a markdown file to ChatGPT and sends a context prompt.
+ * Uses the universal findFileInput() pipeline from domDiscovery.
  *
- * Phase 1 – direct query: the input is often pre-rendered hidden in the DOM.
- *   Works without clicking anything.
- *
- * Phase 2 – attach-button intercept: if Phase 1 finds nothing (or finds the
- *   wrong input like a profile-picture uploader), we click the attach button,
- *   wait for ChatGPT to programmatically call fileInput.click(), and intercept
- *   that click via a composedPath() capture listener so the native file-picker
- *   dialog never opens.  ChatGPT also shows a submenu after the button click —
- *   we poll for the "Upload" menu item and click it to trigger the input click.
- *
- * @returns {Promise<HTMLInputElement|null>}
- */
-async function findChatFileInput() {
-  // Phase 1: direct lookup — fast path when the input is already in the DOM.
-  const direct = /** @type {HTMLInputElement|null} */ (document.querySelector('input[type="file"]'))
-  if (direct) return direct
-
-  // Phase 2: click the attachment button and intercept the file-input click.
-  let attachBtn = /** @type {HTMLElement|null} */ (null)
-  for (const s of ATTACH_BTN_SELECTORS) {
-    attachBtn = /** @type {HTMLElement|null} */ (document.querySelector(s))
-    if (attachBtn) break
-  }
-  if (!attachBtn) return null
-
-  return new Promise((resolve) => {
-    let settled = false
-
-    /** @param {HTMLInputElement|null} result */
-    const done = (result) => {
-      if (settled) return
-      settled = true
-      document.removeEventListener('click', onCapture, true)
-      resolve(result)
-    }
-
-    /** @param {Event} e */
-    const onCapture = (e) => {
-      const path = /** @type {EventTarget[]} */ (e.composedPath())
-      const inp = /** @type {HTMLInputElement|undefined} */ (
-        path.find((t) => t instanceof HTMLInputElement && /** @type {HTMLInputElement} */ (t).type === 'file')
-      )
-      if (inp) {
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        done(inp)
-      }
-    }
-
-    document.addEventListener('click', onCapture, true)
-    setTimeout(() => done(null), 5000)
-
-    /** @type {HTMLElement} */ (attachBtn).click()
-
-    // ChatGPT shows a submenu ("Upload from computer", "Add image", etc.).
-    // Poll until the upload menu item appears and click it.
-    let polls = 0
-    const pollMenu = () => {
-      if (settled) return
-      if (++polls > 30) return
-      const items = /** @type {NodeListOf<HTMLElement>} */ (
-        document.querySelectorAll('[role="menuitem"],[role="option"],li,[data-testid*="menu"]')
-      )
-      for (const el of items) {
-        if (/upload|from\s*computer|local\s*file/i.test(el.textContent ?? '')) {
-          el.click()
-          return
-        }
-      }
-      setTimeout(pollMenu, 150)
-    }
-    setTimeout(pollMenu, 300)
-  })
-}
-
-/**
- * Attaches a markdown file to the ChatGPT chat and sends a context prompt.
- *
- * Uses a two-phase approach to find the correct chat file input — avoiding the
- * risk of targeting the wrong hidden input (e.g. profile-picture uploader) that
- * exists elsewhere on the page.
+ * ChatGPT usually pre-renders input[type="file"] in the DOM, so Phase 1
+ * of findFileInput() resolves instantly without any button clicking.
  *
  * @param {string} markdownContent
  * @param {string} sourcePlatform
  * @param {import('../shared/selectorConfig.js').PlatformSelectors} sel
  */
 export async function injectFile(markdownContent, sourcePlatform, sel) {
-  const fileInput = await findChatFileInput()
+  const inputEl = /** @type {HTMLElement} */ (queryFirst(sel.input) ?? discoverInputEl())
+  if (!inputEl) throw new Error('[chatgpt] Input not found')
+
+  const fileInput = await findFileInput(inputEl, /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn)), ATTACH_BTN_SELECTORS)
   if (!fileInput) throw new Error('[chatgpt] No file input found. File upload may not be available on this page.')
 
   const file = new File([markdownContent], `context-from-${sourcePlatform}.md`, { type: 'text/plain' })
@@ -131,7 +59,11 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
   fileInput.dispatchEvent(new Event('change', { bubbles: true }))
   fileInput.dispatchEvent(new InputEvent('input', { bubbles: true }))
 
-  await sleep(3000)
+  // Wait for ChatGPT to finish uploading the file and show the chip in the UI.
+  // ChatGPT uploads to its servers before showing the chip — this can take
+  // 1–5 s. We watch the DOM and send only after the chip has fully rendered
+  // (300 ms debounce after last mutation), with a 10 s hard fallback.
+  await waitForFileChip(getInputAreaRoot(inputEl), 10000)
 
   const prompt = `I've attached our full conversation history from ${sourcePlatform}. Please read the context file and briefly acknowledge the main topics so we can continue from where we left off.`
   await injectText(prompt, sel, { autoSubmit: true })
