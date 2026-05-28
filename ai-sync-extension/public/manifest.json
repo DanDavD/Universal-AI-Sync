@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Sync, mirror, and export conversations between ChatGPT, Claude, and Gemini in real-time.",
 
-  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "permissions": ["storage", "tabs", "scripting"],
 
   "host_permissions": [
     "https://chat.openai.com/*",
