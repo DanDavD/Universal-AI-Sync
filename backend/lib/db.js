@@ -87,25 +87,46 @@ async function updateStatus({ paypalSubscriptionId, status }) {
 
 /**
  * Validates a license key and returns the user's plan info.
+ * On first call with a deviceId, binds the license to that device.
+ * Subsequent calls only succeed if the deviceId matches.
  * @param {string} licenseKey
+ * @param {string} [deviceId]
  * @returns {Promise<{ valid: boolean, plan: string, status: string, email: string }|null>}
  */
-async function validateLicense(licenseKey) {
+async function validateLicense(licenseKey, deviceId) {
+  const normalizedKey = licenseKey.trim().toUpperCase()
   const { data, error } = await supabase
     .from('users')
-    .select('email, plan, status')
-    .eq('license_key', licenseKey.trim().toUpperCase())
+    .select('email, plan, status, device_id')
+    .eq('license_key', normalizedKey)
     .maybeSingle()
 
   if (error) { console.error('[db] validateLicense:', error.message); return null }
   if (!data)  return null
 
-  return {
-    valid:  data.plan === 'premium' && data.status === 'active',
-    plan:   data.plan,
-    status: data.status,
-    email:  data.email,
+  const isActive = data.plan === 'premium' && data.status === 'active'
+
+  if (!isActive) {
+    return { valid: false, plan: data.plan, status: data.status, email: data.email }
   }
+
+  // First activation: bind the license to this device
+  if (!data.device_id) {
+    if (deviceId) {
+      await supabase
+        .from('users')
+        .update({ device_id: deviceId })
+        .eq('license_key', normalizedKey)
+    }
+    return { valid: true, plan: data.plan, status: data.status, email: data.email }
+  }
+
+  // Already bound: only valid if the same device
+  if (data.device_id !== deviceId) {
+    return { valid: false, plan: data.plan, status: 'device_mismatch', email: data.email }
+  }
+
+  return { valid: true, plan: data.plan, status: data.status, email: data.email }
 }
 
 /**
@@ -119,6 +140,37 @@ async function findByPaypalId(paypalSubscriptionId) {
     .eq('paypal_subscription_id', paypalSubscriptionId)
     .maybeSingle()
   return data ?? null
+}
+
+// ── Free plan cooldown ───────────────────────────────────────────────────────
+
+const FREE_COOLDOWN_MS = 5 * 60 * 60 * 1000 // 5 hours
+
+/**
+ * Checks if a free device is allowed to do a file sync.
+ * If allowed, records the sync time atomically.
+ * @param {string} deviceId
+ * @returns {Promise<{ allowed: boolean, availableAt?: number }>}
+ */
+async function checkAndRecordFileSync(deviceId) {
+  const { data } = await supabase
+    .from('sync_cooldowns')
+    .select('last_sync_at')
+    .eq('device_id', deviceId)
+    .maybeSingle()
+
+  if (data) {
+    const availableAt = new Date(data.last_sync_at).getTime() + FREE_COOLDOWN_MS
+    if (Date.now() < availableAt) {
+      return { allowed: false, availableAt }
+    }
+  }
+
+  await supabase
+    .from('sync_cooldowns')
+    .upsert({ device_id: deviceId, last_sync_at: new Date().toISOString() })
+
+  return { allowed: true }
 }
 
 // ── Admin ────────────────────────────────────────────────────────────────────
@@ -194,6 +246,7 @@ module.exports = {
   updateStatus,
   validateLicense,
   findByPaypalId,
+  checkAndRecordFileSync,
   getAllUsers,
   getStats,
   setUserPlan,

@@ -28,6 +28,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 app.use('/api/license', require('./routes/license'))
+app.use('/api/sync',   require('./routes/sync'))
 app.use('/api/users',  require('./routes/users'))
 app.use('/api/admin',  require('./routes/admin'))
 

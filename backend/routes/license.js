@@ -9,17 +9,18 @@ const db = require('../lib/db')
 // Called by the Chrome extension to check if a license is active.
 // ---------------------------------------------------------------------------
 router.post('/validate', async (req, res) => {
-  const key = (req.body?.key ?? '').trim()
+  const key      = (req.body?.key      ?? '').trim()
+  const deviceId = (req.body?.deviceId ?? '').trim() || undefined
   if (!key) return res.status(400).json({ valid: false, error: 'No key provided' })
 
   try {
-    const result = await db.validateLicense(key)
+    const result = await db.validateLicense(key, deviceId)
     if (!result) return res.json({ valid: false, error: 'License key not found' })
 
     res.json({
-      valid: result.valid,
+      valid:  result.valid,
       status: result.status,
-      email: result.email,
+      email:  result.email,
     })
   } catch (err) {
     res.status(500).json({ valid: false, error: err.message })

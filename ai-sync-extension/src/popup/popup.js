@@ -171,11 +171,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (msg.phase === 'done' && app.pendingFileSync) {
       app.pendingFileSync = false
       chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
-      if (!FILE_SYNC_UNLIMITED && app.plan === 'free') {
-        const now = Date.now()
-        chrome.storage.local.set({ lastFileSyncAt: now }).catch(() => {})
-        startCooldown(now + COOLDOWN_MS)
-      }
     } else if (msg.phase === 'error' && app.pendingFileSync) {
       app.pendingFileSync = false
       chrome.storage.session.remove('fileSyncInProgress').catch(() => {})
@@ -189,15 +184,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ── License & Plan ─────────────────────────────────────────────────────────────
 
+async function getOrCreateDeviceId() {
+  const stored = await chrome.storage.local.get('deviceId')
+  if (stored.deviceId) return stored.deviceId
+  const id = crypto.randomUUID()
+  await chrome.storage.local.set({ deviceId: id })
+  return id
+}
+
 async function checkLicense() {
   try {
-    const stored = await chrome.storage.local.get('licenseKey')
+    const [stored, deviceId] = await Promise.all([
+      chrome.storage.local.get('licenseKey'),
+      getOrCreateDeviceId(),
+    ])
     if (!stored.licenseKey) return applyPlan('free', null)
 
     const res = await fetch(`${BACKEND_URL}/api/license/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: stored.licenseKey }),
+      body: JSON.stringify({ key: stored.licenseKey, deviceId }),
     })
     const data = await res.json()
     if (data.valid && data.status === 'active') {
@@ -269,10 +275,11 @@ async function activateLicenseKey() {
   keyStatus.style.color   = 'var(--text-3)'
 
   try {
+    const deviceId = await getOrCreateDeviceId()
     const res = await fetch(`${BACKEND_URL}/api/license/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, deviceId }),
     })
     const data = await res.json()
 
@@ -285,8 +292,9 @@ async function activateLicenseKey() {
         showMainView()
       }, 1200)
     } else {
-      const msg = data.status === 'suspended' ? 'Payment failed — check your PayPal'
-               : data.status === 'cancelled'  ? 'Subscription cancelled'
+      const msg = data.status === 'suspended'      ? 'Payment failed — check your PayPal'
+               : data.status === 'cancelled'       ? 'Subscription cancelled'
+               : data.status === 'device_mismatch' ? 'Key already activated on another device'
                : 'Invalid key — check and try again'
       keyStatus.textContent = `✗ ${msg}`
       keyStatus.style.color = 'var(--red)'
@@ -633,8 +641,41 @@ function handleSync() {
   })
 }
 
-function handleFileSync() {
+async function handleFileSync() {
   if (!app.source || !app.dest) return
+
+  // Free users must pass a server-side cooldown check — client storage is not trusted
+  if (app.plan !== 'premium') {
+    const deviceId = await getOrCreateDeviceId()
+    let allowed = false
+    let availableAt = Date.now() + COOLDOWN_MS
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/sync/file-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId }),
+      })
+      const data = await res.json()
+      allowed    = data.allowed
+      if (!allowed) availableAt = data.availableAt
+    } catch {
+      // Backend unreachable — fall back to local storage check only
+      const stored = await chrome.storage.local.get('lastFileSyncAt')
+      availableAt  = (stored.lastFileSyncAt ?? 0) + COOLDOWN_MS
+      allowed      = Date.now() >= availableAt
+      if (allowed) await chrome.storage.local.set({ lastFileSyncAt: Date.now() })
+    }
+
+    if (!allowed) {
+      startCooldown(availableAt)
+      return
+    }
+    // Mirror the server timestamp locally so the countdown survives popup reopens
+    await chrome.storage.local.set({ lastFileSyncAt: Date.now() })
+    startCooldown(Date.now() + COOLDOWN_MS)
+  }
+
   app.pendingFileSync = true
   chrome.storage.session.set({ fileSyncInProgress: true }).catch(() => {})
   applyProgress({ phase: 'building', message: 'Building context file…', pct: 5 })
