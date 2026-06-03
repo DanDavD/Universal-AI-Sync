@@ -14,121 +14,157 @@ async function sendLicenseEmail({ to, licenseKey }) {
     subject: 'Your Universal AI Sync Pro license key',
     html: `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-</head>
-<body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;padding:48px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;">
+  <meta name="color-scheme" content="dark"/>
+  <meta name="supported-color-schemes" content="dark"/>
+  <style>
+    :root { color-scheme: dark; supported-color-schemes: dark; }
+    * { box-sizing: border-box; }
+    body, table, td, div, p, a { -webkit-text-size-adjust: 100%; }
 
-          <!-- Top gradient accent bar -->
+    /* Force dark mode on all clients */
+    body { background-color: #09090b !important; margin: 0 !important; padding: 0 !important; }
+
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #09090b !important; }
+      .email-bg { background-color: #09090b !important; }
+      .card { background-color: #18181b !important; border-color: #27272a !important; }
+      .text-primary { color: #f4f4f5 !important; }
+      .text-muted { color: #71717a !important; }
+      .text-subtle { color: #52525b !important; }
+      .text-secondary { color: #a1a1aa !important; }
+      .text-strong { color: #e4e4e7 !important; }
+      .key-bg { background-color: #09090b !important; }
+      .divider { background-color: #27272a !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#09090b;" bgcolor="#09090b">
+
+  <!-- Outer wrapper -->
+  <div style="background-color:#09090b;padding:48px 16px;min-height:100vh;" class="email-bg">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#09090b;" bgcolor="#09090b">
+    <tr>
+      <td align="center" style="background-color:#09090b;" bgcolor="#09090b">
+        <table width="540" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:540px;width:100%;">
+
+          <!-- Gradient top bar -->
           <tr>
-            <td style="height:3px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:2px 2px 0 0;"></td>
+            <td height="3" style="background:linear-gradient(135deg,#4f8ef7,#7c3aed);font-size:0;line-height:0;" bgcolor="#4f8ef7">&nbsp;</td>
           </tr>
 
-          <!-- Main card -->
+          <!-- Card -->
           <tr>
-            <td style="background:#18181b;border:1px solid #27272a;border-top:none;border-radius:0 0 16px 16px;padding:40px 36px 36px;">
+            <td style="background-color:#18181b;border:1px solid #27272a;border-top:none;border-radius:0 0 16px 16px;padding:40px 36px 36px;" bgcolor="#18181b" class="card">
 
-              <!-- Brand header -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+              <!-- Brand row -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
-                  <td>
-                    <p style="margin:0 0 4px;font-size:20px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+                  <td style="vertical-align:middle;">
+                    <p style="margin:0 0 3px;font-size:20px;font-weight:800;letter-spacing:-0.5px;color:#a78bfa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
                       Universal AI Sync
                     </p>
-                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;">
+                    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c3aed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
                       Pro Plan Activated
                     </p>
                   </td>
-                  <td align="right" style="vertical-align:top;">
-                    <span style="display:inline-block;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:20px;padding:4px 14px;font-size:11px;font-weight:800;color:#fff;letter-spacing:0.06em;text-transform:uppercase;">
-                      PRO
-                    </span>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:20px;padding:5px 16px;font-size:11px;font-weight:800;color:#ffffff;letter-spacing:0.08em;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">PRO</span>
                   </td>
                 </tr>
               </table>
 
               <!-- Divider -->
-              <div style="height:1px;background:#27272a;margin-bottom:28px;"></div>
+              <div style="height:1px;background-color:#27272a;margin-bottom:28px;font-size:0;line-height:0;" class="divider">&nbsp;</div>
 
               <!-- Headline -->
-              <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f4f4f5;letter-spacing:-0.4px;">
+              <p style="margin:0 0 8px;font-size:24px;font-weight:700;color:#f4f4f5;letter-spacing:-0.4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-primary">
                 Welcome to Sync Pro
               </p>
-              <p style="margin:0 0 32px;font-size:14px;color:#71717a;line-height:1.65;">
+              <p style="margin:0 0 32px;font-size:14px;color:#71717a;line-height:1.65;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-muted">
                 Your subscription is active. Copy your license key below and activate it in your browser in under 30 seconds.
               </p>
 
-              <!-- License key box with gradient border -->
-              <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#52525b;">
+              <!-- License key label -->
+              <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#52525b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-subtle">
                 Your License Key
               </p>
-              <div style="background:linear-gradient(#09090b,#09090b) padding-box,linear-gradient(135deg,#4f8ef7,#7c3aed) border-box;border:2px solid transparent;border-radius:12px;padding:22px 24px;text-align:center;margin-bottom:12px;box-shadow:0 0 30px rgba(79,142,247,0.12),0 0 60px rgba(124,58,237,0.08);">
-                <p style="margin:0;font-size:22px;font-family:'SF Mono','Fira Code','Courier New',monospace;letter-spacing:5px;color:#f4f4f5;font-weight:700;">
-                  ${licenseKey}
-                </p>
-              </div>
-              <p style="margin:0 0 36px;font-size:12px;color:#52525b;text-align:center;">
-                Keep this key safe — it's tied to your subscription.
+
+              <!-- License key box -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
+                <tr>
+                  <td style="background-color:#09090b;border:2px solid #7c3aed;border-radius:12px;padding:22px 24px;text-align:center;" bgcolor="#09090b" class="key-bg">
+                    <p style="margin:0;font-size:20px;font-family:'Courier New',Courier,monospace;letter-spacing:4px;color:#f4f4f5;font-weight:700;" class="text-primary">
+                      ${licenseKey}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 36px;font-size:12px;color:#52525b;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-subtle">
+                Keep this key safe — it is tied to your subscription.
               </p>
 
-              <!-- Steps header -->
-              <p style="margin:0 0 16px;font-size:11px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:0.1em;">
+              <!-- Steps label -->
+              <p style="margin:0 0 16px;font-size:11px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:0.1em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-subtle">
                 How to activate
               </p>
 
-              <!-- Steps -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+              <!-- Step 1 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
                 <tr>
-                  <td style="vertical-align:top;width:36px;padding-top:1px;">
-                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">1</div>
+                  <td width="36" style="vertical-align:top;padding-top:1px;">
+                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">1</div>
                   </td>
-                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;">
-                    Click the <strong style="color:#e4e4e7;">Universal AI Sync</strong> icon in your Chrome toolbar
+                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-secondary">
+                    Click the <strong style="color:#e4e4e7;" class="text-strong">Universal AI Sync</strong> icon in your Chrome toolbar
                   </td>
                 </tr>
               </table>
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+
+              <!-- Step 2 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
                 <tr>
-                  <td style="vertical-align:top;width:36px;padding-top:1px;">
-                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">2</div>
+                  <td width="36" style="vertical-align:top;padding-top:1px;">
+                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">2</div>
                   </td>
-                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;">
-                    Click <strong style="color:#e4e4e7;">Upgrade</strong> at the top of the popup
+                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-secondary">
+                    Click <strong style="color:#e4e4e7;" class="text-strong">Upgrade</strong> at the top of the popup
                   </td>
                 </tr>
               </table>
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+
+              <!-- Step 3 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
                 <tr>
-                  <td style="vertical-align:top;width:36px;padding-top:1px;">
-                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">3</div>
+                  <td width="36" style="vertical-align:top;padding-top:1px;">
+                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">3</div>
                   </td>
-                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;">
-                    Scroll down to <strong style="color:#e4e4e7;">"Already have a key?"</strong>
+                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-secondary">
+                    Scroll down to <strong style="color:#e4e4e7;" class="text-strong">"Already have a key?"</strong>
                   </td>
                 </tr>
               </table>
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:36px;">
+
+              <!-- Step 4 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:36px;">
                 <tr>
-                  <td style="vertical-align:top;width:36px;padding-top:1px;">
-                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#fff;">4</div>
+                  <td width="36" style="vertical-align:top;padding-top:1px;">
+                    <div style="width:22px;height:22px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;text-align:center;line-height:22px;font-size:11px;font-weight:800;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">4</div>
                   </td>
-                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;">
-                    Paste your key and click <strong style="color:#e4e4e7;">Activate License Key</strong>
+                  <td style="vertical-align:top;font-size:14px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-secondary">
+                    Paste your key and click <strong style="color:#e4e4e7;" class="text-strong">Activate License Key</strong>
                   </td>
                 </tr>
               </table>
 
               <!-- Divider -->
-              <div style="height:1px;background:#27272a;margin-bottom:24px;"></div>
+              <div style="height:1px;background-color:#27272a;margin-bottom:24px;font-size:0;line-height:0;" class="divider">&nbsp;</div>
 
-              <!-- Footer note -->
-              <p style="margin:0;font-size:12px;color:#52525b;line-height:1.7;">
+              <!-- Footer -->
+              <p style="margin:0;font-size:12px;color:#52525b;line-height:1.7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="text-subtle">
                 Your subscription renews automatically each month. To cancel at any time, go to
                 <strong style="color:#3f3f46;">PayPal &rarr; Payments &rarr; Manage automatic payments</strong>.
                 Questions? Reply to this email.
@@ -137,13 +173,13 @@ async function sendLicenseEmail({ to, licenseKey }) {
             </td>
           </tr>
 
-          <!-- Bottom brand -->
+          <!-- Bottom tagline -->
           <tr>
-            <td align="center" style="padding-top:24px;">
-              <p style="margin:0 0 4px;font-size:12px;color:#3f3f46;">
+            <td align="center" style="padding-top:24px;background-color:#09090b;" bgcolor="#09090b">
+              <p style="margin:0 0 4px;font-size:12px;color:#3f3f46;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
                 Universal AI Sync &mdash; One Brain. Four AI. Zero Context Lost.
               </p>
-              <p style="margin:0;font-size:11px;color:#27272a;">
+              <p style="margin:0;font-size:11px;color:#27272a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
                 universalaisync.com
               </p>
             </td>
@@ -153,6 +189,8 @@ async function sendLicenseEmail({ to, licenseKey }) {
       </td>
     </tr>
   </table>
+  </div>
+
 </body>
 </html>
     `,
