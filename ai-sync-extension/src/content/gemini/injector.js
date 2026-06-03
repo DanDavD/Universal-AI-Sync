@@ -1,5 +1,5 @@
 // @ts-check
-import { injectAndSubmit, clickElement, sleep, clearInput } from '../shared/eventSimulator.js'
+import { injectAndSubmit, simulateEnter, setContentEditable, clickElement, sleep, clearInput } from '../shared/eventSimulator.js'
 import { waitForElement } from '../shared/observer.js'
 import { splitIntoChunks, wrapChunk } from '../shared/parser.js'
 import { queryFirst } from '../shared/selectorConfig.js'
@@ -20,7 +20,8 @@ export async function injectText(text, sel, opts = {}) {
       ?? discoverInputEl()
   )
   if (!input) throw new Error('[gemini] Input not found')
-  await injectAndSubmit(input, /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn)), text, opts)
+  const inputRoot = getInputAreaRoot(input)
+  await injectAndSubmit(input, () => /** @type {HTMLElement|null} */ (queryFirst(sel.submitBtn, inputRoot)), text, opts)
 }
 
 /** Fast-path selectors for Gemini's attach button — tried before probing. */
@@ -59,9 +60,25 @@ export async function injectFile(markdownContent, sourcePlatform, sel) {
 
   // Wait for Gemini to show the file chip (DOM settles 300 ms after last mutation)
   await waitForFileChip(getInputAreaRoot(inputEl), 10000)
+  // Extra settle time — Gemini re-enables the input after processing the chip
+  await sleep(800)
 
   const prompt = `I've attached our full conversation history from ${sourcePlatform}. Please read the context file and briefly acknowledge the main topics so we can continue from where we left off.`
-  await injectText(prompt, sel, { autoSubmit: true })
+
+  // Re-query input: Gemini may have rebuilt the editor component after the file chip appeared
+  const activeInput = /** @type {HTMLElement} */ (queryFirst(sel.input) ?? discoverInputEl() ?? inputEl)
+  activeInput.focus()
+  await sleep(60)
+  await setContentEditable(activeInput, prompt)
+  await sleep(200)
+
+  // Submit via Enter — DOM-independent, works regardless of send button's selector or state.
+  // Retry up to 5 times with 400 ms between each to cover slow UI updates.
+  for (let i = 0; i < 5; i++) {
+    simulateEnter(activeInput)
+    await sleep(400)
+    if (!(activeInput.textContent ?? '').trim()) return
+  }
 }
 
 /**

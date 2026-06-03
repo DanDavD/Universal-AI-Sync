@@ -35,6 +35,17 @@ app.use('/api/admin',  require('./routes/admin'))
 // Health check
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
+// Temporary test endpoint — remove after verifying email
+app.get('/api/test-email', async (_req, res) => {
+  try {
+    const { sendLicenseEmail } = require('./lib/mailer')
+    await sendLicenseEmail({ to: 'danieldeverasxd@gmail.com', licenseKey: 'UAIS-TEST1234-ABCD5678' })
+    res.json({ ok: true, message: 'Email sent to danieldeverasxd@gmail.com' })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
