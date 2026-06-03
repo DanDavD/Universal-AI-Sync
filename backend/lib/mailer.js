@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
  */
 async function sendLicenseEmail({ to, licenseKey }) {
   await resend.emails.send({
-    from: 'Universal AI Sync <onboarding@resend.dev>',
+    from: 'Universal AI Sync <noreply@universalaisync.com>',
     to,
     subject: 'Your Universal AI Sync Pro license key',
     html: `
