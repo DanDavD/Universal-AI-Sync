@@ -1,45 +1,17 @@
 'use strict'
-const nodemailer = require('nodemailer')
+const { Resend } = require('resend')
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 465,
-  secure: Number(process.env.SMTP_PORT) === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 /**
  * Sends the license key to the subscriber.
  * @param {{ to: string, licenseKey: string }} params
  */
 async function sendLicenseEmail({ to, licenseKey }) {
-  await transporter.sendMail({
-    from: `"Universal AI Sync" <${process.env.EMAIL_FROM}>`,
+  await resend.emails.send({
+    from: 'Universal AI Sync <onboarding@resend.dev>',
     to,
     subject: 'Your Universal AI Sync Pro license key',
-    text: [
-      'Welcome to Universal AI Sync Pro',
-      '',
-      'Your license key:',
-      '',
-      `  ${licenseKey}`,
-      '',
-      'How to activate (30 seconds):',
-      '1. Click the Universal AI Sync icon in your Chrome toolbar',
-      '2. Click the Upgrade button at the top of the popup',
-      '3. Scroll down to "Already have a key?"',
-      '4. Paste your key and click Activate License Key',
-      '',
-      'Your subscription renews automatically each month.',
-      'To cancel anytime: PayPal account > Payments > Manage automatic payments.',
-      '',
-      'Questions? Reply to this email.',
-      '',
-      'The Universal AI Sync team',
-    ].join('\n'),
     html: `
 <!DOCTYPE html>
 <html lang="en">
