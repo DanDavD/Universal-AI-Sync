@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Universal AI Sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sync, mirror, and export conversations between ChatGPT, Claude, and Gemini in real-time.",
 
   "permissions": ["storage", "tabs", "scripting"],
