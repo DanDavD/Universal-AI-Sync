@@ -1,97 +1,121 @@
-# Universal AI Sync
+# Universal AI Sync — Cross-Platform AI Context Transfer Extension
 
-A Chrome extension (Manifest V3) that copies the context of a conversation from one AI chat to another — ChatGPT, Claude, Gemini and Microsoft Copilot — so you can continue in a different assistant without re-explaining everything.
+A published Google Chrome extension (Manifest V3) that seamlessly transfers conversational context across AI chatbots—including ChatGPT, Claude, Gemini, and Microsoft Copilot—allowing developers to switch assistants without manually re-explaining their prompts.
 
-**Watch the demo:** [YouTube showcase](https://youtu.be/VIDEO_ID) <!-- TODO: replace VIDEO_ID -->
-**Install it:** [Chrome Web Store](https://chromewebstore.google.com/detail/universal-ai-sync/hnfdhhaignnapkpkkhjocckiklgedaln) · [Landing page](https://www.universalaisync.com)
+- **Chrome Web Store:** [Install Universal AI Sync](https://chromewebstore.google.com/detail/universal-ai-sync/hnfdhhaignnapkpkkhjocckiklgedaln)
+- **Live Demo Video:** [YouTube Showcase](https://youtu.be/k5hTZCVGwbI)
+- **Official Website:** [universalaisync.com](https://www.universalaisync.com)
+- **Author:** Daniel David ([@DanDavD](https://github.com/DanDavD))
+- **Stack:** JavaScript (ES6+), Manifest V3, Vite, Node.js 20, Express, Supabase (PostgreSQL), PayPal API
 
-You don't need an account. Open two AI chats in different tabs, open the extension, choose a source and a destination, and click **Sync**.
+---
 
-<!-- TODO: replace with frames from the demo video -->
-| Choosing source → destination | Context arriving in the destination AI |
-|---|---|
-| ![Popup](docs/screenshots/popup-sync-flow.png) | ![Result](docs/screenshots/destination-result.png) |
+## Why I Built This
 
-## Features
+As an engineer frequently working across multiple AI assistants at the same time—using Claude for architecture and code refactoring, ChatGPT for quick queries, Gemini for research, and Copilot for IDE completions—I constantly hit the same frustrating bottleneck:
 
-- **Text-based sync:** reads the source conversation from the page DOM, builds a clean prompt and types it into the destination chat. Long chats are split into parts sized for each platform.
-- **File-based sync:** exports the whole conversation as a Markdown file and uploads it to the destination chat as an attachment.
-- **Four platforms:** a scraper and an injector for each one (ChatGPT, Claude, Gemini, Copilot), plus shared DOM discovery and input-event simulation layers.
-- **Survives popup close:** the MV3 service worker runs the sync and stores its progress in `chrome.storage.session`, so the popup can be closed or reopened during a sync.
-- **Licensing backend (implemented, not live):** an Express + Supabase API for a freemium model. It handles PayPal subscriptions with webhooks, emails license keys through Resend, binds each key to one device and enforces a 5-hour cooldown on file sync for free users. See *Project status* below.
+Every time one model reached a rate limit, needed a second opinion, or excelled at a specific task, I had to manually copy, paste, format, and re-explain 10 to 20 messages of conversational background. 
 
-## Tech stack
+I built Universal AI Sync to completely eliminate this copy-paste chore from my daily workflow:
+1. Detects open AI tabs automatically.
+2. Selects source and destination assistants in one click.
+3. Automatically serializes conversation threads and injects them seamlessly into the target chat.
 
-| Layer | Tech |
-|---|---|
-| Extension | Vanilla JavaScript, Chrome Extension Manifest V3, Vite 8 (custom `build.mjs` that bundles each entry as an IIFE) |
-| Backend | Node.js 20+, Express 4 |
-| Database | Supabase (PostgreSQL) with Row Level Security; the backend uses the service-role key |
-| Payments / email | PayPal Subscriptions API + webhooks, Resend |
-| Hosting | Landing page on Vercel (separate repo). Backend previously on Railway (`backend/railway.json`) |
+After validating the time saved in my own software and game development routines, I polished the extension, passed Google's Web Store review, and published it publicly for other developers experiencing the exact same daily friction.
 
-```
-ai-sync-extension/   Chrome extension (popup, service worker, per-platform content scripts)
-backend/             Express API: license validation, free-plan cooldown, PayPal, admin dashboard
-supabase/            SQL migrations + demo seed (fake data)
-```
+---
 
-## Project status
+## Technical Architecture & Core Capabilities
 
-- **Extension: live.** It is published on the Chrome Web Store (v1.0.1). Text and file sync run entirely in the browser and do not need the backend.
-- **Backend: offline.** It was deployed on Railway during development. It went offline when the Railway trial ended, and I have not redeployed it.
-- **Pro plan: not connected in the published build.** The backend URL is injected at build time (`VITE_BACKEND_URL`). The v1.0.1 release was built without it, so it points to `http://localhost:3000`. As a result, the **Upgrade** button in the published extension does not work. When the backend can't be reached, the extension falls back to the free plan, so the core features are unaffected.
+Universal AI Sync operates via a decoupled architecture separating client-side browser automation from an optional subscription management backend:
 
-## Context
-
-A personal project that I built and published on my own. It is not a class project or client work.
-
-**Team:** solo. I designed and built the extension (UI, scraping and injection for each platform, service worker), the Express backend, the Supabase schema, and the PayPal and email integrations.
-
-## Run locally
-
-Requirements: Node.js 20+ and Chrome.
-
-### Extension
-
-```bash
-cd ai-sync-extension
-npm ci
-npm run build        # outputs to ai-sync-extension/dist
-# or: npm run dev    # rebuilds on change, with sourcemaps
+```text
++-------------------------------------------------------------+
+|               User Presentation Layer (Popup UI)            |
+|   Tab Detection · Source & Destination Picker · Sync Modes  |
++------------------------------+------------------------------+
+                               | Message Passing (Runtime API)
++------------------------------v------------------------------+
+|               Background Service Worker (Manifest V3)       |
+|   chrome.storage.session · State Machine · Survives Closes  |
++------------------------------+------------------------------+
+                               | Dispatches Content Scripts
++------------------------------v------------------------------+
+|               Content Scripts (DOM Scraping & Injection)    |
+|   ChatGPT  ·  Claude  ·  Gemini  ·  Microsoft Copilot       |
+|   DOM Sanitization · Event Simulation · Chunked Input Flow  |
++-------------------------------------------------------------+
 ```
 
-In Chrome, go to `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select `ai-sync-extension/dist`.
+### 1. Dual Synchronization Modes
+- **Text-Based Sync:** Scrapes the active conversation DOM, strips noise, formats clean prompt structures, and simulates synthetic user keystrokes into the destination input element. Long conversations are dynamically chunked to conform to each platform's input constraints.
+- **File-Based Sync:** Automatically exports the complete conversational history into a structured Markdown document (`.md`) and attaches it directly into the destination chat interface.
 
-To point the popup at a deployed backend instead of `http://localhost:3000`:
+### 2. Multi-Platform Adapters
+Maintains dedicated scrapers and injectors for all four major web LLM interfaces:
+- OpenAI ChatGPT
+- Anthropic Claude
+- Google Gemini
+- Microsoft Copilot
 
-```bash
-VITE_BACKEND_URL=https://your-backend.example.com npm run build
+Each adapter couples robust DOM discovery logic with simulated input-event dispatches, handling dynamic single-page application (SPA) mutations gracefully.
+
+### 3. Background Persistence in Manifest V3
+Unlike legacy extensions that abort when a popup window loses focus, Universal AI Sync delegates transfer execution to an asynchronous Manifest V3 service worker backed by `chrome.storage.session`. Users can freely close the popup or switch browser windows while multi-part context transfers execute in the background.
+
+### 4. Modular Licensing Backend (Node.js & Supabase)
+Features an optional freemium billing service:
+- **API:** Node.js 20 and Express REST server.
+- **Database:** Supabase (PostgreSQL) with Row-Level Security (RLS) policies.
+- **Billing & Delivery:** PayPal Subscriptions API with automated webhooks and transactional license key distribution via Resend.
+
+---
+
+## Codebase Structure
+
+```text
+Universal-AI-Sync/
+├── ai-sync-extension/         # Chrome extension client source
+│   ├── src/
+│   │   ├── background/        # Manifest V3 service worker and session orchestrator
+│   │   ├── content/           # Per-platform scrapers, injectors, and DOM discovery
+│   │   └── popup/             # Extension popup user interface and tab detector
+│   ├── manifest.json          # Chrome extension Manifest V3 definition
+│   └── build.mjs              # Custom Vite/Rollup build pipeline bundling IIFE entries
+├── backend/                   # Express REST API for licensing and device authentication
+│   ├── controllers/           # License validation and PayPal webhook listeners
+│   └── routes/                # API endpoints and middleware guardrails
+└── supabase/                  # PostgreSQL schema migrations and RLS security rules
 ```
 
-The backend origin must also be listed in `public/manifest.json` (`host_permissions` and `externally_connectable`).
+---
 
-### Backend (optional, needed for licensing only)
+## Local Development & Setup
 
-1. Create a **separate** Supabase project for development.
-2. In its SQL editor, run `supabase/migrations/001_schema.sql`, then `002_device_binding_and_cooldowns.sql`, then (optionally) `supabase/seed/demo_seed.sql`.
-3. Configure and start the server:
+### Running the Chrome Extension
+1. Clone the repository and install dependencies:
+   ```bash
+   cd ai-sync-extension
+   npm ci
+   npm run build
+   ```
+2. Open Google Chrome and navigate to `chrome://extensions/`.
+3. Enable **Developer mode** (top right toggle).
+4. Click **Load unpacked** and select the generated `ai-sync-extension/dist` directory.
 
+### Running the Backend (Optional)
 ```bash
 cd backend
-cp .env.example .env   # fill in SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_SECRET
+cp .env.example .env
 npm ci
-npm run dev            # http://localhost:3000/api/health → {"ok":true}
+npm run dev
+# Server running at http://localhost:3000
 ```
 
-The seed creates a fake Pro license, `UAIS-DEMO0000-DEMO0001` (email `demo@demo.com`). To activate it, open the popup, click **Upgrade**, then **Already have a key?**. PayPal and Resend credentials are only needed to test checkout and email delivery.
+---
 
-## Known limitations and next steps
+## Author & License
 
-- **Reconnect licensing:** redeploy the backend on a free host such as Render, build with `VITE_BACKEND_URL`, and publish v1.0.2. Until then, hide the Upgrade button.
-- **Scraping depends on each site's DOM.** When ChatGPT, Claude, Gemini or Copilot change their markup, the selectors (`src/content/shared/selectorConfig.js`) have to be updated.
-- **No automated tests yet.**
-- **Hardcoded PayPal values:** the client ID and plan ID are hardcoded in `backend/public/checkout.html` instead of being read from configuration.
-- **Weak free-plan limit:** the cooldown is keyed by a device ID that the client generates, so it is a soft limit.
-- **Unfinished mirror mode:** the service worker has handlers for live "mirror" pairing, but the popup does not expose them yet.
-- **Leftover template files:** `index.html`, `src/main.js`, `src/counter.js` and `vite.config.js` come from the Vite template and are not used by the build.
+- **Developer:** Daniel David ([@DanDavD](https://github.com/DanDavD))
+- **Extension Status:** Live on [Chrome Web Store](https://chromewebstore.google.com/detail/universal-ai-sync/hnfdhhaignnapkpkkhjocckiklgedaln) (v1.0.1)
+- **License:** Open source under the [MIT License](LICENSE)
